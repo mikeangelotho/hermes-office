@@ -1,0 +1,270 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "C:\\Users\\mdeez\\Projects\\hermes-office\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "tests/e2e/camera-pause.spec.ts",
+      "--reporter=line,json"
+    ],
+    "configFile": "C:\\Users\\mdeez\\Projects\\hermes-office\\playwright.config.ts",
+    "rootDir": "C:/Users/mdeez/Projects/hermes-office/tests/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/mdeez/Projects/hermes-office/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "desktop",
+        "name": "desktop",
+        "testDir": "C:/Users/mdeez/Projects/hermes-office/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "C:\\Users\\mdeez\\Projects\\hermes-office\\test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "desktop",
+        "testDir": "C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e",
+        "snapshotDir": "C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 30000,
+        "use": {
+          "baseURL": "http://127.0.0.1:5000",
+          "channel": "chrome",
+          "headless": true,
+          "launchOptions": {
+            "args": [
+              "--enable-webgl",
+              "--use-angle=swiftshader",
+              "--enable-unsafe-swiftshader"
+            ]
+          },
+          "screenshot": "only-on-failure",
+          "trace": "retain-on-failure",
+          "viewport": {
+            "width": 1440,
+            "height": 960
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "desktop"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "line"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "camera-pause.spec.ts",
+      "file": "camera-pause.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "pause settles a camera flight already in progress",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 11999,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m0.1\u001b[39m\nReceived:   \u001b[31m51.09798313045241\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m0.1\u001b[39m\nReceived:   \u001b[31m51.09798313045241\u001b[39m\n    at C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e\\camera-pause.spec.ts:25:59",
+                    "location": {
+                      "file": "C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e\\camera-pause.spec.ts",
+                      "column": 59,
+                      "line": 25
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 23 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m400\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 24 |\u001b[39m     \u001b[36mconst\u001b[39m second\u001b[33m=\u001b[39m\u001b[36mawait\u001b[39m projectedPosition()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 25 |\u001b[39m     expect(\u001b[33mMath\u001b[39m\u001b[33m.\u001b[39mhypot(second\u001b[33m.\u001b[39mx\u001b[33m-\u001b[39mfirst\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39msecond\u001b[33m.\u001b[39my\u001b[33m-\u001b[39mfirst\u001b[33m.\u001b[39my))\u001b[33m.\u001b[39mtoBeLessThan(\u001b[35m.1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                                           \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 26 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByTestId(\u001b[32m'scene-canvas'\u001b[39m))\u001b[33m.\u001b[39mtoHaveAttribute(\u001b[32m'data-focus'\u001b[39m\u001b[33m,\u001b[39m\u001b[32m'development'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 27 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByTestId(\u001b[32m'scene-canvas'\u001b[39m))\u001b[33m.\u001b[39mtoHaveAttribute(\u001b[32m'data-agents'\u001b[39m\u001b[33m,\u001b[39m\u001b[32m'33'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 28 |\u001b[39m   })\u001b[33m;\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e\\camera-pause.spec.ts",
+                        "column": 59,
+                        "line": 25
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m0.1\u001b[39m\nReceived:   \u001b[31m51.09798313045241\u001b[39m\n\n  23 |     await page.waitForTimeout(400);\n  24 |     const second=await projectedPosition();\n> 25 |     expect(Math.hypot(second.x-first.x,second.y-first.y)).toBeLessThan(.1);\n     |                                                           ^\n  26 |     await expect(page.getByTestId('scene-canvas')).toHaveAttribute('data-focus','development');\n  27 |     await expect(page.getByTestId('scene-canvas')).toHaveAttribute('data-agents','33');\n  28 |   });\n    at C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e\\camera-pause.spec.ts:25:59"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-04T20:50:28.454Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\test-results\\camera-pause-pause-settles-6c0d2--flight-already-in-progress-desktop\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\test-results\\camera-pause-pause-settles-6c0d2--flight-already-in-progress-desktop\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\test-results\\camera-pause-pause-settles-6c0d2--flight-already-in-progress-desktop\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e\\camera-pause.spec.ts",
+                    "column": 59,
+                    "line": 25
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "ff85657140d0e98a44e0-0fe3b55674d2c7cc63d6",
+          "file": "camera-pause.spec.ts",
+          "line": 4,
+          "column": 3
+        },
+        {
+          "title": "reduced motion settles a camera flight already in progress",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 9486,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m0.1\u001b[39m\nReceived:   \u001b[31m79.32868349468558\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m0.1\u001b[39m\nReceived:   \u001b[31m79.32868349468558\u001b[39m\n    at C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e\\camera-pause.spec.ts:25:59",
+                    "location": {
+                      "file": "C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e\\camera-pause.spec.ts",
+                      "column": 59,
+                      "line": 25
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 23 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m400\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 24 |\u001b[39m     \u001b[36mconst\u001b[39m second\u001b[33m=\u001b[39m\u001b[36mawait\u001b[39m projectedPosition()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 25 |\u001b[39m     expect(\u001b[33mMath\u001b[39m\u001b[33m.\u001b[39mhypot(second\u001b[33m.\u001b[39mx\u001b[33m-\u001b[39mfirst\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39msecond\u001b[33m.\u001b[39my\u001b[33m-\u001b[39mfirst\u001b[33m.\u001b[39my))\u001b[33m.\u001b[39mtoBeLessThan(\u001b[35m.1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                                           \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 26 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByTestId(\u001b[32m'scene-canvas'\u001b[39m))\u001b[33m.\u001b[39mtoHaveAttribute(\u001b[32m'data-focus'\u001b[39m\u001b[33m,\u001b[39m\u001b[32m'development'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 27 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByTestId(\u001b[32m'scene-canvas'\u001b[39m))\u001b[33m.\u001b[39mtoHaveAttribute(\u001b[32m'data-agents'\u001b[39m\u001b[33m,\u001b[39m\u001b[32m'33'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 28 |\u001b[39m   })\u001b[33m;\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e\\camera-pause.spec.ts",
+                        "column": 59,
+                        "line": 25
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m0.1\u001b[39m\nReceived:   \u001b[31m79.32868349468558\u001b[39m\n\n  23 |     await page.waitForTimeout(400);\n  24 |     const second=await projectedPosition();\n> 25 |     expect(Math.hypot(second.x-first.x,second.y-first.y)).toBeLessThan(.1);\n     |                                                           ^\n  26 |     await expect(page.getByTestId('scene-canvas')).toHaveAttribute('data-focus','development');\n  27 |     await expect(page.getByTestId('scene-canvas')).toHaveAttribute('data-agents','33');\n  28 |   });\n    at C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e\\camera-pause.spec.ts:25:59"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-04T20:50:43.200Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\test-results\\camera-pause-reduced-motio-7562f--flight-already-in-progress-desktop\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\test-results\\camera-pause-reduced-motio-7562f--flight-already-in-progress-desktop\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\test-results\\camera-pause-reduced-motio-7562f--flight-already-in-progress-desktop\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\mdeez\\Projects\\hermes-office\\tests\\e2e\\camera-pause.spec.ts",
+                    "column": 59,
+                    "line": 25
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "ff85657140d0e98a44e0-d7086009edb47534c97e",
+          "file": "camera-pause.spec.ts",
+          "line": 4,
+          "column": 3
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-04T20:50:27.606Z",
+    "duration": 27042.495,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}

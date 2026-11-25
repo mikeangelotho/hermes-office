@@ -1,0 +1,28 @@
+[
+  {
+    "position": "left",
+    "mouse": [
+      80,
+      720
+    ],
+    "tracking": "3",
+    "yaw": "0.2535",
+    "pitch": "0.2043",
+    "drawCalls": "256",
+    "triangles": "12904",
+    "errors": []
+  },
+  {
+    "position": "right",
+    "mouse": [
+      1360,
+      180
+    ],
+    "tracking": "3",
+    "yaw": "0.7500",
+    "pitch": "-0.1555",
+    "drawCalls": "256",
+    "triangles": "12904",
+    "errors": []
+  }
+]

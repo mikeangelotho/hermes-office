@@ -1,0 +1,184 @@
+[
+  {
+    "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\artifacts\\screenshots\\campus-live-desktop.png",
+    "viewport": [
+      1440,
+      960
+    ],
+    "mode": "LIVE"
+  },
+  {
+    "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\artifacts\\screenshots\\campus-live-portrait.png",
+    "mode": "LIVE",
+    "focus": "all",
+    "agents": 33,
+    "rooms": 5,
+    "viewport": [
+      390,
+      844
+    ],
+    "overflow": false,
+    "markers": [
+      {
+        "name": "Atelier\n0 working\n/ 8",
+        "x": 81.4375,
+        "y": 439.5,
+        "w": 80,
+        "h": 44,
+        "inside": true
+      },
+      {
+        "name": "Systems bay\n1 working\n/ 10",
+        "x": 125.8125,
+        "y": 377.671875,
+        "w": 80,
+        "h": 44,
+        "inside": true
+      },
+      {
+        "name": "Observatory\n0 working\n/ 4",
+        "x": 230.546875,
+        "y": 411.375,
+        "w": 80,
+        "h": 44,
+        "inside": true
+      },
+      {
+        "name": "Play lab\n0 working\n/ 10",
+        "x": 190.046875,
+        "y": 476.5,
+        "w": 80,
+        "h": 44,
+        "inside": true
+      },
+      {
+        "name": "Quiet core\n1 working\n/ 1",
+        "x": 93.6875,
+        "y": 519.453125,
+        "w": 80,
+        "h": 44,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\artifacts\\screenshots\\campus-embedded-wide.png",
+    "mode": "embedded demo",
+    "viewport": [
+      1200,
+      360
+    ],
+    "controls": 0,
+    "privateRequests": 0,
+    "errors": [],
+    "stats": {
+      "testid": "scene-canvas",
+      "engine": "three.js r187",
+      "agents": "33",
+      "rooms": "5",
+      "focus": "all",
+      "memoryPoints": "38000",
+      "memoryTime": "1.221",
+      "projection": "perspective",
+      "fiberTime": "1.221",
+      "gazeTracking": "0",
+      "gazeYaw": "0.0000",
+      "gazePitch": "0.0250",
+      "glassReady": "1",
+      "glassPixels": "44160",
+      "dataTrails": "27",
+      "glassDrawCalls": "9",
+      "fps": "18",
+      "drawCalls": "413",
+      "triangles": "11558",
+      "totalTriangles": "11558"
+    }
+  },
+  {
+    "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\artifacts\\screenshots\\campus-live-atelier.png",
+    "mode": "LIVE",
+    "focus": "studio",
+    "agents": 33,
+    "rooms": 5,
+    "viewport": [
+      1440,
+      960
+    ],
+    "errors": [],
+    "visibleRoom": [
+      {
+        "id": "studio-campaign",
+        "team": "studio",
+        "state": "idle",
+        "seat": "couch",
+        "pose": "lounge",
+        "x": -5.7,
+        "z": 3.86
+      },
+      {
+        "id": "studio-designer",
+        "team": "studio",
+        "state": "idle",
+        "seat": "couch",
+        "pose": "lounge",
+        "x": -4.7,
+        "z": 3.86
+      },
+      {
+        "id": "studio-email",
+        "team": "studio",
+        "state": "idle",
+        "seat": "couch",
+        "pose": "lounge",
+        "x": -3.7,
+        "z": 3.86
+      },
+      {
+        "id": "studio-engineer",
+        "team": "studio",
+        "state": "idle",
+        "seat": "couch",
+        "pose": "lounge",
+        "x": -2.7,
+        "z": 3.86
+      },
+      {
+        "id": "studio-indesign",
+        "team": "studio",
+        "state": "idle",
+        "seat": "couch",
+        "pose": "lounge",
+        "x": -1.7000000000000002,
+        "z": 3.86
+      },
+      {
+        "id": "studio-lead",
+        "team": "studio",
+        "state": "idle",
+        "seat": "couch",
+        "pose": "lounge",
+        "x": 1.7,
+        "z": 3.86
+      },
+      {
+        "id": "studio-motion",
+        "team": "studio",
+        "state": "idle",
+        "seat": "couch",
+        "pose": "lounge",
+        "x": 2.7,
+        "z": 3.86
+      },
+      {
+        "id": "studio-quality",
+        "team": "studio",
+        "state": "idle",
+        "seat": "couch",
+        "pose": "lounge",
+        "x": 3.7,
+        "z": 3.86
+      }
+    ],
+    "trustedFullscreen": true
+  }
+]

@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Isolated spatial-glass pixel regression</title><link rel="icon" type="image/svg+xml" href="/favicon.svg"><canvas id="scene" width="600" height="400"></canvas><script type="module">
+import * as THREE from 'three';
+import { Assets } from '/src/scene/room.ts';
+import { PALETTE as P } from '/src/scene/palette.ts';
+import { createSpatialGlass } from '/src/scene/spatial-glass.ts';
+const a = new Assets(), scene = new THREE.Scene();scene.background = new THREE.Color(P.void);
+const renderer = new THREE.WebGLRenderer({canvas:document.querySelector('canvas'),antialias:false,preserveDrawingBuffer:true});
+renderer.setPixelRatio(1);renderer.setSize(600,400,false);renderer.info.autoReset = false;
+const camera = new THREE.OrthographicCamera(-5,5,10/3,-10/3,.1,20);camera.position.z = 8;camera.lookAt(0,0,0);
+const white = new THREE.MeshBasicMaterial({color:'#ffffff'}),blue = new THREE.MeshBasicMaterial({color:'#061028'});
+white.userData.hologramRole = blue.userData.hologramRole = 'environment';
+const geometry = new THREE.PlaneGeometry(.15,6);
+for(let i=0;i<68;i++){const stripe=new THREE.Mesh(geometry,i%2?blue:white);stripe.position.x=-5+i*.15;scene.add(stripe);}
+const lens = a.mesh(P.glass,[8,6,.12],[0,0,1]);scene.add(lens);
+const frost = createSpatialGlass(renderer,camera,[scene],a.glass);frost.resize(600,400);
+function sample(on){lens.visible=on;renderer.info.reset();frost.render(1,true);renderer.render(scene,camera);const gl=renderer.getContext(), pixels=new Uint8Array(600*4);gl.readPixels(0,200,600,1,gl.RGBA,gl.UNSIGNED_BYTE,pixels);let variation=0,mean=0;for(let i=121;i<480;i++){const at=i*4,previous=(i-1)*4;variation+=Math.abs(pixels[at+1]-pixels[previous+1]);mean+=pixels[at+1];}return {variation:variation/359,mean:mean/359};}
+window.__glassContrast=()=>{const clear=sample(false),frosted=sample(true);return {clear:clear.variation,frosted:frosted.variation,frostedMean:frosted.mean};};
+window.addEventListener('pagehide',()=>{frost.dispose();a.dispose();geometry.dispose();white.dispose();blue.dispose();renderer.dispose();},{once:true});
+renderer.render(scene,camera);
+</script></html>

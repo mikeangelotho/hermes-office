@@ -1,0 +1,66 @@
+[
+  {
+    "image": "memory-mobile.png",
+    "viewport": [
+      390,
+      844
+    ],
+    "canvas": {
+      "testid": "scene-canvas",
+      "engine": "three.js r187",
+      "agents": "8",
+      "memoryPoints": "46000",
+      "memoryTime": "0.480",
+      "projection": "perspective",
+      "fiberTime": "0.480",
+      "gazeTracking": "0",
+      "gazeYaw": "0.0000",
+      "gazePitch": "0.0250",
+      "glassReady": "1",
+      "glassPixels": "33480",
+      "dataTrails": "17",
+      "glassDrawCalls": "10"
+    },
+    "ui": 11,
+    "overflow": [
+      false,
+      false
+    ],
+    "privateRequests": 0,
+    "errors": []
+  },
+  {
+    "image": "memory-embedded.png",
+    "viewport": [
+      1200,
+      420
+    ],
+    "canvas": {
+      "testid": "scene-canvas",
+      "engine": "three.js r187",
+      "agents": "8",
+      "memoryPoints": "46000",
+      "memoryTime": "0.480",
+      "projection": "perspective",
+      "fiberTime": "0.480",
+      "gazeTracking": "0",
+      "gazeYaw": "0.0000",
+      "gazePitch": "0.0250",
+      "glassReady": "1",
+      "glassPixels": "51456",
+      "dataTrails": "17",
+      "glassDrawCalls": "10",
+      "fps": "11",
+      "drawCalls": "180",
+      "triangles": "6430",
+      "totalTriangles": "6430"
+    },
+    "ui": 0,
+    "overflow": [
+      false,
+      false
+    ],
+    "privateRequests": 0,
+    "errors": []
+  }
+]

@@ -1,0 +1,89 @@
+[
+  {
+    "image": "icons-dock.png",
+    "state": {
+      "buttons": [
+        {
+          "label": "Open team",
+          "text": ""
+        },
+        {
+          "label": "Open view controls",
+          "text": ""
+        },
+        {
+          "label": "Open status",
+          "text": ""
+        },
+        {
+          "label": "Enter full screen",
+          "text": ""
+        },
+        {
+          "label": "About this space",
+          "text": ""
+        }
+      ],
+      "errors": []
+    }
+  },
+  {
+    "image": "icons-view.png",
+    "state": {
+      "bounds": {
+        "x": 22,
+        "y": 575.25,
+        "width": 300,
+        "height": 290.75,
+        "top": 575.25,
+        "right": 322,
+        "bottom": 866,
+        "left": 22
+      },
+      "labels": [
+        "Open team",
+        "Open view controls",
+        "Open status",
+        "About this space",
+        "Close panel",
+        "Zoom out",
+        "Reset view",
+        "Zoom in",
+        "Switch to evening",
+        "Pause animation",
+        "Enter full screen"
+      ],
+      "tooltipCount": 0,
+      "errors": []
+    }
+  },
+  {
+    "image": "icons-team.png",
+    "state": {
+      "rooms": 5,
+      "agents": 8,
+      "errors": []
+    }
+  },
+  {
+    "image": "icons-mobile.png",
+    "state": {
+      "bounds": {
+        "x": 14,
+        "y": 469.25,
+        "width": 362,
+        "height": 290.75,
+        "top": 469.25,
+        "right": 376,
+        "bottom": 760,
+        "left": 14
+      },
+      "overflow": [
+        false,
+        false
+      ],
+      "smallControls": 0,
+      "errors": []
+    }
+  }
+]

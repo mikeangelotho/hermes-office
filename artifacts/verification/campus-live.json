@@ -1,0 +1,379 @@
+{
+  "url": "http://127.0.0.1:5000/?team=all",
+  "requests": [
+    {
+      "observedAt": "2026-11-04T20:29:57.339180Z",
+      "sourceHealth": "degraded",
+      "agents": [
+        {
+          "id": "default",
+          "state": "working",
+          "team": "general"
+        },
+        {
+          "id": "dev-architect",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-embedded",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-experience",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-lead",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-native",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-platform",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-quality",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-security",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-services",
+          "state": "offline",
+          "team": "development"
+        },
+        {
+          "id": "dev-web",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "game-art",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-audio",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-director",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-engineer",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-experience",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-platform",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-quality",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-systems",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-techart",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-world",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "science-producer",
+          "state": "idle",
+          "team": "science"
+        },
+        {
+          "id": "science-researcher",
+          "state": "idle",
+          "team": "science"
+        },
+        {
+          "id": "science-reviewer",
+          "state": "idle",
+          "team": "science"
+        },
+        {
+          "id": "science-studio",
+          "state": "idle",
+          "team": "science"
+        },
+        {
+          "id": "studio-campaign",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-designer",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-email",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-engineer",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-indesign",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-lead",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-motion",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-quality",
+          "state": "idle",
+          "team": "studio"
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-11-04T20:30:27.108320Z",
+      "sourceHealth": "degraded",
+      "agents": [
+        {
+          "id": "default",
+          "state": "working",
+          "team": "general"
+        },
+        {
+          "id": "dev-architect",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-embedded",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-experience",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-lead",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-native",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-platform",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-quality",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-security",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "dev-services",
+          "state": "offline",
+          "team": "development"
+        },
+        {
+          "id": "dev-web",
+          "state": "idle",
+          "team": "development"
+        },
+        {
+          "id": "game-art",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-audio",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-director",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-engineer",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-experience",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-platform",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-quality",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-systems",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-techart",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "game-world",
+          "state": "idle",
+          "team": "game"
+        },
+        {
+          "id": "science-producer",
+          "state": "idle",
+          "team": "science"
+        },
+        {
+          "id": "science-researcher",
+          "state": "idle",
+          "team": "science"
+        },
+        {
+          "id": "science-reviewer",
+          "state": "idle",
+          "team": "science"
+        },
+        {
+          "id": "science-studio",
+          "state": "idle",
+          "team": "science"
+        },
+        {
+          "id": "studio-campaign",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-designer",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-email",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-engineer",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-indesign",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-lead",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-motion",
+          "state": "idle",
+          "team": "studio"
+        },
+        {
+          "id": "studio-quality",
+          "state": "idle",
+          "team": "studio"
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "source": "LIVE",
+  "stats": {
+    "testid": "scene-canvas",
+    "engine": "three.js r187",
+    "agents": "33",
+    "rooms": "5",
+    "focus": "all",
+    "memoryPoints": "38000",
+    "memoryTime": "28.268",
+    "projection": "perspective",
+    "fiberTime": "28.268",
+    "gazeTracking": "0",
+    "gazeYaw": "0.0000",
+    "gazePitch": "0.0250",
+    "glassReady": "1",
+    "glassPixels": "141220",
+    "dataTrails": "1",
+    "glassDrawCalls": "9",
+    "fps": "30",
+    "drawCalls": "422",
+    "triangles": "11558",
+    "totalTriangles": "22436"
+  },
+  "matches": true,
+  "roomLabels": [
+    "Atelier\n0 working\n/ 8",
+    "Systems bay\n0 working\n/ 10",
+    "Observatory\n0 working\n/ 4",
+    "Play lab\n0 working\n/ 10",
+    "Quiet core\n1 working\n/ 1"
+  ]
+}

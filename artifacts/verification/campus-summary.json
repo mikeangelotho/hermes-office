@@ -1,0 +1,287 @@
+{
+  "recordedAt": "2026-11-04T20:48:46.055766+00:00",
+  "sourceHashes": {
+    "src/App.tsx": "c834bc9da10380e2d004797e6cb435c8120f120576575a231a0fe991ca9434f4",
+    "src/components/Icon.tsx": "74c3a9040e0aa4296fd10ae3a7ddc37395d4c928dbff6aec44648930ace07215",
+    "src/components/IconControl.tsx": "645df4e9da5ad1c4882d173284c9289aa0ffdfa2660232d647a6b20e064cbec5",
+    "src/components/OfficeScene.tsx": "264fa337fd3e064a74c0c648fd4e61a8fe542e70f0140462f2690d3981df3d87",
+    "src/contrast.css": "5d4d5249cacee9e350a7c533346fa6188b987a6c3d85b81754ae38894e8dd5b3",
+    "src/domain/demo.ts": "fa4e05fe07fbaf50a0660919275233591aebbd753072e8fa01f472ff46fc6343",
+    "src/domain/presentation.ts": "e85609a0bc81ab32457616b5e67874219328fc9ded665781dae07aaa06ce7450",
+    "src/domain/snapshot.ts": "cf12680ceef480220766699b463a1645e742873b54e2fb3367fcb5541240a346",
+    "src/domain/state.ts": "cff2548e7d6c54bae3f809987442a6de3ab036735ceed0bf140e0758ec7d16e7",
+    "src/domain/types.ts": "0230a3804e0e10546cc740d9a1683f56bb4fb47b4e85d6db27ca514f661e8584",
+    "src/Experience.tsx": "c75ee504a4373e56d83619db1a7cdbe088cc1ef541f17aa0b5d48b50a6774bde",
+    "src/lib/status.ts": "94ade6714cb6c877d0cb24869b11e7ddc2364c1a419fc8db51808df283f8dd31",
+    "src/main.tsx": "9dd201bf37683e983a7b7890c67eddad29931d2f113a33b5d4140e5ccb2a043a",
+    "src/scene/camera.ts": "ce19f7da78d34c904c0a03a1f01b11aad5b646d05c5b281d378688f74a427ebe",
+    "src/scene/campus-camera.ts": "7483aa247a6a7ac1686a7695d77e21eb60692c15d78d5c0ec29ede282963a37a",
+    "src/scene/campus.ts": "a8f1ecd533183020648fdf29490d35cffdceb8e993bbf60208e583959e072e3d",
+    "src/scene/character.ts": "9e6d4f58246ee6c3940f275e1a6e68964c26731f8ea0d669f1b9e1d58c2c0767",
+    "src/scene/courtyard.ts": "f3a7b118a0ffe9fc58eb1bc76fdb13ee9772d4846a29b2aaab455a6c35c23dd8",
+    "src/scene/data-trails.ts": "d0a0b6cb75b12e09364bfca385166c44b2bf556662c4a66b6e0db42954063298",
+    "src/scene/engine.ts": "0b1f26928af3cd5d5830c780b8690166c06e3e9e0db577e1af46ca6b6c95e9e1",
+    "src/scene/fibers.ts": "ac26eea10f0160be1c26907339a6e755f1f7578a64eed19f6e593359b5600b69",
+    "src/scene/hologram.ts": "f95adb81d36553c71ab4c383ea9febd83534b0508b7ed01d5ecce1a80a725c6c",
+    "src/scene/layout.ts": "ad025f648701482d79ee7168a8f3835ed865f8a6abe56c3c4fdb25eba12fa933",
+    "src/scene/memory-field.ts": "d58f864b5b25f6fc7d1fe67886ecddd348a56d478cf00a0b334ec897d2985a29",
+    "src/scene/palette.ts": "2f898fa4885aa3d94e81089540a0de10573951ef93363da4950ffd8487c672d5",
+    "src/scene/reconstruction-density.ts": "4d93b58b9aa0391d51a981ce3fd7746cd3cbf4ffc92aaa5774ca1e7060855555",
+    "src/scene/room.ts": "aabd3997e32d052d9c24bf8122143b211ea21592af0911669135ff5c7105efa1",
+    "src/scene/spatial-glass.ts": "b5bce3de67214a98cbf6994de7680fd8a76c978abb8cf29a004cbecca09c2384",
+    "src/styles.css": "cb8bb690d85734395946a8e15f2ef1eeb199cdd3f5b2f309e039a01b6df84210",
+    "src/ui/controls.ts": "2d92a09a0ae1deb6c5cf30372d1b681f41335c1a7092fba060e13a2b985126b8"
+  },
+  "changedBaselineFiles": [
+    "src/Experience.tsx",
+    "src/styles.css",
+    "src/components/OfficeScene.tsx",
+    "src/domain/presentation.ts",
+    "src/scene/character.ts",
+    "src/scene/courtyard.ts",
+    "src/scene/engine.ts",
+    "src/scene/hologram.ts",
+    "src/scene/layout.ts",
+    "src/scene/memory-field.ts",
+    "src/scene/room.ts",
+    "tests/layout.test.ts",
+    "tests/memory-figures.test.ts",
+    "tests/memory-material.test.ts",
+    "tests/poses.test.ts",
+    "tests/presentation.test.ts",
+    "tests/e2e/cursor-gaze.spec.ts",
+    "tests/e2e/hologram-and-general.spec.ts",
+    "tests/e2e/icon-controls.spec.ts",
+    "tests/e2e/immersive.spec.ts",
+    "tests/e2e/live-and-performance.spec.ts",
+    "tests/e2e/office.spec.ts",
+    "README.md",
+    "playwright.config.ts"
+  ],
+  "checks": {
+    "node": {
+      "passed": 62,
+      "failed": 0
+    },
+    "bridge": {
+      "passed": 24,
+      "failed": 0,
+      "scope": "collector unchanged since verified run"
+    },
+    "typecheck": "passed",
+    "productionBuild": "passed; Three.js chunk-size advisory",
+    "browserFullRun": {
+      "startTime": "2026-11-04T20:41:58.330Z",
+      "duration": 273957.248,
+      "expected": 27,
+      "skipped": 0,
+      "unexpected": 1,
+      "flaky": 0
+    },
+    "browserFollowUp": {
+      "reason": "Portrait touch assertions passed; manual browser-context teardown hit shared test deadline. Switched to managed page fixture. No production edits.",
+      "stats": {
+        "startTime": "2026-11-04T20:48:03.033Z",
+        "duration": 9067.209,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    "livePolling": {
+      "snapshots": [
+        "2026-11-04T20:29:57.339180Z",
+        "2026-11-04T20:30:27.108320Z"
+      ],
+      "roster": 33,
+      "renderedStatesMatch": true
+    },
+    "screenshots": [
+      {
+        "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\artifacts\\screenshots\\campus-live-desktop.png",
+        "viewport": [
+          1440,
+          960
+        ],
+        "mode": "LIVE"
+      },
+      {
+        "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\artifacts\\screenshots\\campus-live-portrait.png",
+        "mode": "LIVE",
+        "focus": "all",
+        "agents": 33,
+        "rooms": 5,
+        "viewport": [
+          390,
+          844
+        ],
+        "overflow": false,
+        "markers": [
+          {
+            "name": "Atelier\n0 working\n/ 8",
+            "x": 81.4375,
+            "y": 439.5,
+            "w": 80,
+            "h": 44,
+            "inside": true
+          },
+          {
+            "name": "Systems bay\n1 working\n/ 10",
+            "x": 125.8125,
+            "y": 377.671875,
+            "w": 80,
+            "h": 44,
+            "inside": true
+          },
+          {
+            "name": "Observatory\n0 working\n/ 4",
+            "x": 230.546875,
+            "y": 411.375,
+            "w": 80,
+            "h": 44,
+            "inside": true
+          },
+          {
+            "name": "Play lab\n0 working\n/ 10",
+            "x": 190.046875,
+            "y": 476.5,
+            "w": 80,
+            "h": 44,
+            "inside": true
+          },
+          {
+            "name": "Quiet core\n1 working\n/ 1",
+            "x": 93.6875,
+            "y": 519.453125,
+            "w": 80,
+            "h": 44,
+            "inside": true
+          }
+        ]
+      },
+      {
+        "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\artifacts\\screenshots\\campus-embedded-wide.png",
+        "mode": "embedded demo",
+        "viewport": [
+          1200,
+          360
+        ],
+        "controls": 0,
+        "privateRequests": 0,
+        "errors": [],
+        "stats": {
+          "testid": "scene-canvas",
+          "engine": "three.js r187",
+          "agents": "33",
+          "rooms": "5",
+          "focus": "all",
+          "memoryPoints": "38000",
+          "memoryTime": "1.221",
+          "projection": "perspective",
+          "fiberTime": "1.221",
+          "gazeTracking": "0",
+          "gazeYaw": "0.0000",
+          "gazePitch": "0.0250",
+          "glassReady": "1",
+          "glassPixels": "44160",
+          "dataTrails": "27",
+          "glassDrawCalls": "9",
+          "fps": "18",
+          "drawCalls": "413",
+          "triangles": "11558",
+          "totalTriangles": "11558"
+        }
+      },
+      {
+        "path": "C:\\Users\\mdeez\\Projects\\hermes-office\\artifacts\\screenshots\\campus-live-atelier.png",
+        "mode": "LIVE",
+        "focus": "studio",
+        "agents": 33,
+        "rooms": 5,
+        "viewport": [
+          1440,
+          960
+        ],
+        "errors": [],
+        "visibleRoom": [
+          {
+            "id": "studio-campaign",
+            "team": "studio",
+            "state": "idle",
+            "seat": "couch",
+            "pose": "lounge",
+            "x": -5.7,
+            "z": 3.86
+          },
+          {
+            "id": "studio-designer",
+            "team": "studio",
+            "state": "idle",
+            "seat": "couch",
+            "pose": "lounge",
+            "x": -4.7,
+            "z": 3.86
+          },
+          {
+            "id": "studio-email",
+            "team": "studio",
+            "state": "idle",
+            "seat": "couch",
+            "pose": "lounge",
+            "x": -3.7,
+            "z": 3.86
+          },
+          {
+            "id": "studio-engineer",
+            "team": "studio",
+            "state": "idle",
+            "seat": "couch",
+            "pose": "lounge",
+            "x": -2.7,
+            "z": 3.86
+          },
+          {
+            "id": "studio-indesign",
+            "team": "studio",
+            "state": "idle",
+            "seat": "couch",
+            "pose": "lounge",
+            "x": -1.7000000000000002,
+            "z": 3.86
+          },
+          {
+            "id": "studio-lead",
+            "team": "studio",
+            "state": "idle",
+            "seat": "couch",
+            "pose": "lounge",
+            "x": 1.7,
+            "z": 3.86
+          },
+          {
+            "id": "studio-motion",
+            "team": "studio",
+            "state": "idle",
+            "seat": "couch",
+            "pose": "lounge",
+            "x": 2.7,
+            "z": 3.86
+          },
+          {
+            "id": "studio-quality",
+            "team": "studio",
+            "state": "idle",
+            "seat": "couch",
+            "pose": "lounge",
+            "x": 3.7,
+            "z": 3.86
+          }
+        ],
+        "trustedFullscreen": true
+      }
+    ],
+    "independentReview": "result pending delivery"
+  },
+  "scope": "Local app only; no bot/profile/gateway changes or remote publication"
+}
