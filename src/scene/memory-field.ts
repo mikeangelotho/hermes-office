@@ -6,18 +6,25 @@ import {reconstructionDensity} from './reconstruction-density.ts';
 export function scanMaterial(time:{value:number},strength=.5) {
   const material=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
     uniforms:{uTime:time,uPixelRatio:{value:1},uPointSize:{value:1.05},uStrength:{value:strength},uColor:{value:new THREE.Color(P.azure)}},
-    vertexShader:`uniform float uTime;uniform float uPixelRatio;uniform float uPointSize;attribute float aSeed;varying float vSeed;varying float vFade;varying float vSignal;
+    vertexShader:`uniform float uTime;uniform float uPixelRatio;uniform float uPointSize;attribute float aSeed;varying float vSeed;varying float vFade;varying float vSignal;varying float vSparkle;
       void main(){vSeed=aSeed;vec4 world=modelMatrix*vec4(position,1.0);
         float scan=sin(world.y*5.7+world.x*.38+world.z*.21-uTime*.32);
         vSignal=.86+.14*scan;world.y+=pow(max(0.0,scan),28.0)*.035;
+        vec3 voxel=floor(world.xyz*8.0);
+        float colOffset=fract(sin(dot(voxel,vec3(12.9898,78.233,37.719)))*43758.5453);
+        float phase=uTime*(.7+colOffset*1.1)+colOffset*17.3;
+        float env=sin(fract(phase)*3.14159265);
+        float pick=step(.935,fract(sin(dot(voxel+floor(phase),vec3(39.346,11.135,83.155)))*43758.5453));
+        vSparkle=pick*env*env;
         vec4 view=viewMatrix*world;
         vFade=1.0/(1.0+dot(view.xyz,view.xyz)*.00006);
-        gl_Position=projectionMatrix*view;gl_PointSize=(.65+aSeed*.35)*uPointSize*uPixelRatio;
+        gl_Position=projectionMatrix*view;gl_PointSize=(.65+aSeed*.35+vSparkle*.85)*uPointSize*uPixelRatio;
       }`,
-    fragmentShader:`uniform float uStrength;uniform vec3 uColor;varying float vSeed;varying float vFade;varying float vSignal;
+    fragmentShader:`uniform float uStrength;uniform vec3 uColor;varying float vSeed;varying float vFade;varying float vSignal;varying float vSparkle;
       void main(){vec2 q=abs(gl_PointCoord-.5);float edge=1.0-smoothstep(.28,.5,max(q.x,q.y));
-        vec3 color=uColor*(.7+.3*vSeed);
-        gl_FragColor=vec4(color,edge*(.25+.75*vSeed)*vSignal*vFade*uStrength);
+        vec3 color=uColor*(.7+.3*vSeed+vSparkle*.65);
+        float alpha=edge*((.25+.75*vSeed)*vSignal*uStrength+vSparkle*(.42*uStrength+.28))*vFade;
+        gl_FragColor=vec4(color,min(alpha,1.0));
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,

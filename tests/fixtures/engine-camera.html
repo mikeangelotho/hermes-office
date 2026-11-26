@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8"><title>Office engine camera regression</title>
+<style>canvas { display: block; width: 400px; height: 260px; }</style>
+<canvas></canvas>
+<script type="module">
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createOffice } from '/src/scene/engine.ts';
+
+// Observe the controls the real engine constructs; don't replace their behavior or expose them in the app.
+const canvas = document.querySelector('canvas');
+let controls, office;
+const connect = OrbitControls.prototype.connect;
+OrbitControls.prototype.connect = function (element) { controls = this; return connect.call(this, element); };
+try {
+  office = createOffice(canvas, { interactive: true, onSelect() {}, onError(message) { throw Error(message); } });
+} finally { OrbitControls.prototype.connect = connect; }
+const pose = () => ({ position: controls.object.position.toArray(), target: controls.target.toArray(),
+  zoom: controls.object.zoom, aspect: controls.object.aspect });
+window.addEventListener('pagehide', () => office.dispose(), { once: true });
+// Let the browser deliver initial ResizeObserver/IntersectionObserver notifications before accepting gestures.
+requestAnimationFrame(() => requestAnimationFrame(() => { window.cameraTest = { canvas, office, controls, pose }; }));
+</script>

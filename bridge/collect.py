@@ -4,8 +4,10 @@ No Hermes imports: those may initialize or migrate application-owned state.
 """
 from __future__ import annotations
 
-from contextlib import closing
+from collections.abc import Callable
+from contextlib import ExitStack, closing
 from datetime import datetime, timezone
+import hashlib
 import json
 import math
 from itertools import islice
@@ -14,12 +16,15 @@ from pathlib import Path
 import re
 import socket
 import sqlite3
+import stat
 import sys
 import time
 
 TEAM_PREFIXES = {"studio": "studio", "dev": "development", "game": "game", "science": "science"}
 PROFILE_ID = re.compile(r"(studio|dev|game|science)-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 MAX_RUNTIME_ROWS = 10000
+MAX_ROSTER = 128
+MAX_TOOL_COUNT = (1 << 53) - 1  # Largest losslessly representable JavaScript safe integer.
 SAFE_COLUMNS = {
     "sessions": {"id", "source", "profile_name", "parent_session_id", "ended_at", "end_reason", "last_activity_at", "runtime_generation"},
     "gateway_heartbeats": {"pid", "started_at", "last_heartbeat", "profile", "host"},
@@ -272,23 +277,151 @@ def live_gateways(connection, now: float, scope: str | None = None) -> set[str]:
     return result
 
 
+ParticipantMeta = tuple[str, str | None]
+ParticipantObserver = Callable[[ExitStack, sqlite3.Connection, dict[str, ParticipantMeta], bool], None]
+
+
+def authorize_meter(action, table, column, database, via):
+    # A separate, narrower policy for the final parameterized counter lookup only.
+    if via is None and (action == sqlite3.SQLITE_SELECT
+            or (action == sqlite3.SQLITE_READ and database == "main" and table == "sessions"
+                and column in {"id", "profile_name", "ended_at", "tool_call_count"})
+            or (action == sqlite3.SQLITE_FUNCTION and column == "typeof")):
+        return sqlite3.SQLITE_OK
+    return sqlite3.SQLITE_DENY
+
+
+def _read_counter(db: sqlite3.Connection, profile_id: str, sid: str) -> int | None:
+    # No text/blob cell reaches Python, no numeric coercion and no history-derived substitute.
+    with closing(db.execute(
+        "SELECT s.tool_call_count FROM main.sessions AS s WHERE s.id COLLATE BINARY=? "
+        "AND s.ended_at IS NULL AND (s.profile_name IS NULL OR s.profile_name COLLATE BINARY IN ('', ?)) "
+        "AND typeof(s.tool_call_count)='integer' AND s.tool_call_count BETWEEN 0 AND ? LIMIT 2",
+        (sid, profile_id, MAX_TOOL_COUNT),
+    )) as cursor:
+        row = cursor.fetchone()
+        return row[0] if row is not None and cursor.fetchone() is None else None
+
+
+class RecordingReads(ExitStack):
+    """Hold only admitted groups' read transactions until their normal roster is complete."""
+    def __init__(self):
+        super().__init__()
+        self.groups: list[tuple[sqlite3.Connection, str, dict[str, str]]] = []
+
+    def retain(self, store: ExitStack, db: sqlite3.Connection, profile_id: str, aliases: dict[str, str]):
+        self.enter_context(store.pop_all())  # Same snapshot as the lease/worker proof; never reopen by path.
+        self.groups.append((db, profile_id, aliases))
+
+    def sample(self) -> dict[str, int]:
+        meters = {}
+        deadline = time.monotonic() + 0.25  # Optional reads never consume the roster's own budget.
+        for db, profile_id, aliases in self.groups:
+            # No more roster SQL runs on these handles. The stack closes them on every exit.
+            try:
+                db.set_progress_handler(lambda: int(time.monotonic() >= deadline), 1000)
+                db.set_authorizer(authorize_meter)
+            except sqlite3.Error:
+                continue
+            for sid, alias in aliases.items():
+                if time.monotonic() >= deadline:
+                    return meters
+                try:
+                    value = _read_counter(db, profile_id, sid)
+                except sqlite3.Error as error:
+                    if (str(error) == "no such column: s.tool_call_count"
+                            or getattr(error, "sqlite_errorcode", None) == sqlite3.SQLITE_AUTH):
+                        break  # The column is absent or denied for this entire store.
+                    continue  # An unreadable cell is not a reason to suppress a different worker's meter.
+                if value is not None:
+                    meters[alias] = value
+        return meters
+
+
+def participant_columns(connection) -> tuple[str, str]:
+    """Only fixed, allowlisted SQL fragments; never introspect a legacy store's private schema."""
+    fields = []
+    for name, probe, field in (("source", "SELECT source FROM sessions LIMIT 0", "s.source"),
+                               ("parent_session_id", "SELECT parent_session_id FROM sessions LIMIT 0", "s.parent_session_id")):
+        try:
+            connection.execute(probe)
+        except sqlite3.OperationalError as error:
+            if str(error) != f"no such column: {name}":
+                raise  # A timeout, denied read or failure is not evidence of an absent column.
+            field = "NULL"
+        fields.append(field)
+    return fields[0], fields[1]
+
+
+def participant_metadata(row) -> ParticipantMeta | None:
+    if (not isinstance(row["id"], str) or not 0 < len(row["id"]) <= 1024
+            or not isinstance(row["source"], str) or not row["source"].strip()):
+        return None
+    # A native parent pointer alone can also mean compression or fork, not delegation.
+    if row["source"] == "subagent":
+        return "subagent", row["parent_session_id"]
+    return "session", None
+
+
+def project_participants(profile: Path, profile_id: str, team: str, observed_at: str,
+                         observed: dict[str, ParticipantMeta]) -> tuple[list[dict], bool, dict[str, str]]:
+    # Stable across one-shot collector processes, scoped to this installation/profile.
+    # No raw ID, holder token, profile path or per-user key file crosses the bridge.
+    try:
+        directory = profile.stat(follow_symlinks=False)
+    except OSError:
+        return [], True, {}  # The profile disappeared after its read; the aggregate remains usable.
+    namespace = os.fsencode(os.path.normcase(os.path.abspath(profile))) + f"\0{directory.st_dev}:{directory.st_ino}".encode("ascii")
+    scope = hashlib.blake2s(namespace).digest()
+    keys = {sid: "p-" + hashlib.blake2s(sid.encode(), key=scope, digest_size=16).hexdigest() for sid in observed}
+    # Only direct links between observed participants in this store. If native lineage is corrupt,
+    # strip the cyclic edges, not their verified workers (or unrelated profiles in the snapshot).
+    parents = {sid: parent for sid, (_, parent) in observed.items() if parent is not None and parent in keys}
+    checked, cyclic = set(), set()
+    for sid in parents:
+        cursor, path = sid, {}
+        while cursor in parents and cursor not in checked:
+            if cursor in path:
+                cyclic.update(list(path)[path[cursor]:])
+                break
+            path[cursor] = len(path)
+            cursor = parents[cursor]
+        checked.update(path)
+    rows = []
+    for sid, (kind, _) in observed.items():
+        key = keys[sid]
+        rows.append({"id": key, "profileId": profile_id, "kind": kind, "team": team,
+                     "name": f"{kind.capitalize()} {key[2:8].upper()}",
+                     "role": "Delegated subagent" if kind == "subagent" else "Active session",
+                     "state": "working", "observedAt": observed_at, "activity": "Verified in-flight work.",
+                     **({"parentId": keys[parents[sid]]} if sid in parents and sid not in cyclic else {})})
+    return sorted(rows, key=lambda row: row["id"]), bool(cyclic), keys
+
+
 def read_profile(profile: Path, now: float, deadline: float, gateways: set[str],
-                 profile_id: str | None = None, stale_gateways: set[str] | None = None) -> tuple[str, str | None, bool, int | None]:
+                 profile_id: str | None = None, stale_gateways: set[str] | None = None,
+                 *, observe: ParticipantObserver | None = None) -> tuple[str, str | None, bool, int | None]:
     profile_id = profile_id or profile.name
     last_active = None
     try:
-        with closing(open_readonly(profile / "state.db", deadline)) as connection:
+        with ExitStack() as store:
+            connection = store.enter_context(closing(open_readonly(profile / "state.db", deadline)))
             latest = connection.execute(
                 "SELECT MAX(last_activity_at) FROM sessions WHERE profile_name IS NULL OR profile_name IN ('', ?)",
                 (profile_id,),
             ).fetchone()[0]
             last_active = timestamp(latest, now)
-            uncertain = False
-            active_sessions = set()
+            stale_lease = False
+            unverified = set()
+            # Keys are used only inside this observation; values are eligible, unended participants.
+            active_sessions = {}
             verified_work, count_complete = False, True
             gateways.update(live_gateways(connection, now, profile_id))
+            source_field, parent_field = participant_columns(connection)
             leases = connection.execute(
-                "SELECT l.conversation_id, l.holder, l.acquired_at, l.expires_at FROM session_turn_leases l "
+                f"SELECT s.id, {source_field} AS source, {parent_field} AS parent_session_id, "
+                "s.ended_at, l.holder, l.acquired_at, l.expires_at "
+                "FROM session_turn_leases l "
                 "JOIN sessions s ON s.id=l.conversation_id "
                 "WHERE (s.profile_name IS NULL OR s.profile_name IN ('', ?)) "
                 "AND (s.ended_at IS NULL OR s.end_reason='compression') LIMIT 10001",
@@ -299,15 +432,22 @@ def read_profile(profile: Path, now: float, deadline: float, gateways: set[str],
             for lease in leases:
                 if time.monotonic() >= deadline:
                     raise OSError("Runtime observation deadline")
-                if (math.isfinite(float(lease["expires_at"])) and float(lease["expires_at"]) > now
-                        and lease_owner_verified(lease["holder"], lease["acquired_at"], now)):
-                    active_sessions.add(lease["conversation_id"])
+                expires = float(lease["expires_at"])
+                current = math.isfinite(expires) and expires > now
+                if current and lease_owner_verified(lease["holder"], lease["acquired_at"], now):
+                    # A compression-root lease is still evidence for the legacy aggregate, not a live row.
+                    active_sessions[lease["id"]] = participant_metadata(lease) if lease["ended_at"] is None else None
                     verified_work = True
+                elif current and lease["ended_at"] is None:
+                    unverified.add(lease["id"])
                 else:
-                    uncertain = True
+                    stale_lease = True
             workers = connection.execute(
-                "SELECT s.id,s.parent_session_id,s.last_activity_at,s.runtime_generation,w.status,w.owner_epoch,w.generation,e.epoch "
+                f"SELECT s.id,{source_field} AS source,{parent_field} AS parent_session_id,s.last_activity_at,s.runtime_generation,"
+                "w.status,w.owner_epoch,w.generation,e.epoch, "
+                "(p.end_reason IS NOT 'compression') AS distinct_parent "
                 "FROM worker_executions w JOIN sessions s ON s.id=w.session_id "
+                f"LEFT JOIN sessions p ON p.id={parent_field} "
                 "LEFT JOIN runtime_epoch e ON e.singleton=1 "
                 "WHERE w.status IN ('running','registered','unknown') AND s.ended_at IS NULL "
                 "AND (s.profile_name IS NULL OR s.profile_name IN ('', ?)) LIMIT 10001",
@@ -326,24 +466,35 @@ def read_profile(profile: Path, now: float, deadline: float, gateways: set[str],
                         and fresh(worker["last_activity_at"], now)):
                     verified_work = True
                     if worker["id"] not in active_sessions:
-                        if worker["parent_session_id"]:
+                        if parent_field == "NULL" or (worker["parent_session_id"] and not
+                                (worker["source"] == "subagent" and worker["distinct_parent"])):
                             # Native fork/compression disambiguation reads model_config,
                             # outside this observer's allowlist. Omit the total, not a guess.
                             count_complete = False
                         else:
-                            active_sessions.add(worker["id"])
+                            active_sessions[worker["id"]] = participant_metadata(worker)
                 else:
-                    uncertain = True
-            pending = connection.execute(
-                "SELECT 1 FROM session_admissions a JOIN sessions s ON s.id=a.target_session_id "
-                "WHERE a.status IN ('queued','started','unknown') "
-                "AND (s.profile_name IS NULL OR s.profile_name IN ('', ?)) LIMIT 1", (profile_id,),
-            ).fetchone()
+                    unverified.add(worker["id"])
             if len(active_sessions) > MAX_RUNTIME_ROWS:
                 raise ValueError("Runtime observation limit")
+            # At most len(active_sessions) DISTINCT targets can already be covered.
+            with closing(connection.execute(
+                "SELECT DISTINCT s.id FROM session_admissions a JOIN sessions s ON s.id=a.target_session_id "
+                "WHERE a.status IN ('queued','started','unknown') AND s.ended_at IS NULL "
+                "AND (s.profile_name IS NULL OR s.profile_name IN ('', ?)) LIMIT ?",
+                (profile_id, len(active_sessions) + 1),
+            )) as admissions:
+                pending = any(row[0] not in active_sessions for row in admissions)
+            if observe is not None:
+                typed = {sid: meta for sid, meta in active_sessions.items() if meta is not None}
+                partial = (pending or not unverified.issubset(active_sessions)
+                           or (verified_work and (not count_complete or len(active_sessions) != len(typed))))
+                observe(store, connection, typed, partial)
             if verified_work:
+                # activeSessions is a verified lower bound when other claims are unresolved.
+                # With ambiguous fork/compression identity, even the deduplication is unknown: omit it.
                 return "working", last_active, True, len(active_sessions) if count_complete else None
-            if uncertain or pending:
+            if stale_lease or unverified or pending:
                 return "offline", last_active, True, 0
             stale = profile_id in (stale_gateways or set()) and profile_id not in gateways
             return ("offline" if stale else "idle"), last_active, True, 0
@@ -361,7 +512,33 @@ def paused(home: Path) -> bool:
         return True  # The installed ESTOP contract fails safe on stat errors.
 
 
-def collect(home: Path | None = None) -> dict:
+def native_directory(path: Path) -> bool:
+    info = path.lstat()  # Path.is_dir() can silently turn a denied lookup into False.
+    if stat.S_ISLNK(info.st_mode) or (os.name == "nt" and info.st_reparse_tag == stat.IO_REPARSE_TAG_MOUNT_POINT):
+        raise OSError("Linked profile directory")
+    return stat.S_ISDIR(info.st_mode)
+
+
+def roster_entries(profiles: Path) -> tuple[list[Path], bool]:
+    """Only a genuinely absent optional directory means a complete empty roster."""
+    try:
+        if not native_directory(profiles):
+            return [], True
+    except FileNotFoundError:
+        return [], False
+    except OSError:
+        return [], True
+
+    entries = []
+    try:
+        with os.scandir(profiles) as directory:
+            entries.extend(Path(entry.path) for entry in islice(directory, 513))
+    except OSError:
+        return entries, True  # Even an interrupted iterator may have yielded real profiles.
+    return entries, False
+
+
+def _collect_snapshot(home: Path | None, reads: RecordingReads | None = None) -> dict:
     home = Path(home) if home is not None else default_home()
     now, deadline = time.time(), time.monotonic() + 6.0
     if home.is_symlink() or home.is_junction():
@@ -369,8 +546,8 @@ def collect(home: Path | None = None) -> dict:
         return {"schemaVersion": 1, "mode": "live", "source": "Local Hermes status bridge",
                 "observedAt": timestamp(now, now), "pollIntervalMs": 30000, "sourceHealth": "unavailable",
                 "agents": [], "warnings": ["Hermes status storage is unavailable."]}
-    observed_at = timestamp(now, now)
-    agents = []
+    observed_at = datetime.fromtimestamp(now, timezone.utc).isoformat().replace("+00:00", "Z")
+    agents, participants = [], []
     global_pause, any_pause = paused(home), False
     gateways, root_ok = set(), False
     try:
@@ -381,31 +558,46 @@ def collect(home: Path | None = None) -> dict:
         pass
     runtime_live, stale_gateways, runtime_failed = runtime_gateways(home, now, deadline)
     gateways.update(runtime_live)
-    failed, limited, supported_count = False, False, 0
+    supported_count = 0
     roster = []
     if home.is_dir() and not home.is_symlink() and not home.is_junction():
         roster.append((home, "default", "Hermes", "General assistant", "general"))
-    try:
-        profiles = home / "profiles"
-        if profiles.is_symlink() or profiles.is_junction():
-            raise OSError("Profile roster unavailable")
-        with os.scandir(profiles) as directory:
-            entries = list(islice(directory, 513))
-        limited = len(entries) > 512
-        for profile in sorted((Path(entry.path) for entry in entries[:512]), key=lambda p: p.name):
-            if (len(profile.name) > 64 or not PROFILE_ID.fullmatch(profile.name)
-                    or profile.is_symlink() or profile.is_junction() or not profile.is_dir()):
+    entries, failed = roster_entries(home / "profiles")
+    limited = len(entries) > 512
+    for profile in sorted(entries[:512], key=lambda p: p.name):
+        if len(profile.name) > 64 or not PROFILE_ID.fullmatch(profile.name):
+            continue
+        try:
+            if not native_directory(profile):
                 continue
-            if len(roster) >= 128:
-                limited = True
-                break
-            roster.append((profile, profile.name, display_name(profile),
-                           profile.name.split("-", 1)[1].replace("-", " ").title(),
-                           TEAM_PREFIXES[profile.name.split("-", 1)[0]]))
-    except OSError:
-        pass
+        except OSError:
+            failed = True
+            continue
+        if len(roster) >= MAX_ROSTER:
+            limited = True
+            break
+        roster.append((profile, profile.name, display_name(profile),
+                       profile.name.split("-", 1)[1].replace("-", " ").title(),
+                       TEAM_PREFIXES[profile.name.split("-", 1)[0]]))
+    # Each profile already occupies one slot. Admit whole groups within the rendered roster cap;
+    # an oversized group keeps its aggregate and count rather than losing the rest silently.
+    spare_slots, partial_details = MAX_ROSTER - len(roster), False
     for profile, profile_id, name, role, team in roster:
-        state, last_active, supported, active_sessions = read_profile(profile, now, deadline, gateways, profile_id, stale_gateways)
+        def project_visible(store, connection, typed, partial):
+            nonlocal spare_slots, partial_details
+            partial_details |= partial
+            if len(typed) > spare_slots + 1:
+                partial_details = True
+            elif typed:
+                rows, invalid_links, aliases = project_participants(profile, profile_id, team, observed_at, typed)
+                participants.extend(rows)
+                partial_details |= invalid_links
+                spare_slots -= max(0, len(rows) - 1)
+                if reads is not None and aliases:
+                    reads.retain(store, connection, profile_id, aliases)
+
+        state, last_active, supported, active_sessions = read_profile(
+            profile, now, deadline, gateways, profile_id, stale_gateways, observe=project_visible)
         failed |= not supported
         supported_count += int(supported)
         is_paused = global_pause or paused(profile)
@@ -433,10 +625,11 @@ def collect(home: Path | None = None) -> dict:
         "source": "Local Hermes status bridge",
         "observedAt": observed_at,
         "pollIntervalMs": 30000,
-        "sourceHealth": ("connected" if supported_count and not failed and not runtime_failed and not limited
+        "sourceHealth": ("connected" if supported_count and not failed and not runtime_failed and not limited and not partial_details
                          and all(a["state"] != "offline" for a in agents)
                          else "degraded" if supported_count else "unavailable"),
         "agents": agents,
+        **({"participants": participants} if participants else {}),
         "warnings": ["Input-waiting and blocked states are not inferred from stored messages." if agents
                      else "Hermes status storage is unavailable."]
                     + (["Some profiles have no fresh runtime evidence; offline means uncertain."]
@@ -447,10 +640,20 @@ def collect(home: Path | None = None) -> dict:
                     + (["Some active-session totals are unavailable; no history-based estimate is used."]
                        if any(a["id"] == "default" and a["state"] == "working" and "activeSessions" not in a for a in agents) else [])
                     + (["Roster limit reached; additional profiles are not shown."] if limited else [])
+                    + (["Some participant details are unavailable; the roster may show aggregate or partial activity."] if partial_details else [])
                     + (["Read time limit reached; some statuses are uncertain."] if time.monotonic() >= deadline else [])
                     + (["New work is paused; existing turns are not stopped by ESTOP."] if any_pause else []),
     }
 
 
+def collect(home: Path | None = None, *, recording: bool = False) -> dict:
+    if not recording:
+        return _collect_snapshot(home)
+    with RecordingReads() as reads:
+        snapshot = _collect_snapshot(home, reads)
+        return {"snapshot": snapshot, "meters": reads.sample()}
+
+
 if __name__ == "__main__":
-    print(json.dumps(collect(), ensure_ascii=True, allow_nan=False, separators=(",", ":")))
+    print(json.dumps(collect(recording=sys.argv[1:] == ["--recording"]),
+                     ensure_ascii=True, allow_nan=False, separators=(",", ":")))

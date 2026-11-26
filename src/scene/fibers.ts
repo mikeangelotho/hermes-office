@@ -63,11 +63,24 @@ export function createFiberField(): { group: THREE.Group; tick(time: number, red
   const pointsMaterial = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     uniforms: { uTime: time, uColor: { value: new THREE.Color(P.ice) } },
-    vertexShader: `varying float vPhase; void main() { vPhase = position.x + position.y;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_PointSize = 3.0; }`,
-    fragmentShader: `uniform float uTime; uniform vec3 uColor; varying float vPhase;
-      void main() { float r = length(gl_PointCoord - .5); if (r > .5) discard;
-        gl_FragColor = vec4(uColor, (.3 + .05 * sin(uTime * .3 + vPhase)) * (1.0 - smoothstep(.08, .5, r)));
+    vertexShader: `uniform float uTime; varying float vPhase; varying float vSparkle;
+      void main() {
+        float id = fract(sin(dot(position, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+        vPhase = position.x + position.y;
+        float t = uTime * (.65 + id * 1.15) + id * 19.7;
+        float env = sin(fract(t) * 3.14159265);
+        float pick = step(.72, fract(sin(dot(position + floor(t), vec3(39.346, 11.135, 83.155))) * 43758.5453));
+        vSparkle = pick * env * env;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = 2.8 + vSparkle * 2.6;
+      }`,
+    fragmentShader: `uniform float uTime; uniform vec3 uColor; varying float vPhase; varying float vSparkle;
+      void main() { vec2 q = gl_PointCoord - .5; float r = length(q); if (r > .5) discard;
+        float core = 1.0 - smoothstep(.08, .5, r);
+        float star = exp(-min(abs(q.x), abs(q.y)) * 18.0) * core * vSparkle;
+        vec3 color = uColor * (1.0 + vSparkle * .65);
+        float alpha = (.28 + .08 * sin(uTime * .35 + vPhase)) * core + vSparkle * .52 * core + star * .35;
+        gl_FragColor = vec4(color, min(alpha, 1.0));
         #include <colorspace_fragment>
       }`,
   });

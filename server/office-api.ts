@@ -1,10 +1,15 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { execFile } from 'node:child_process';
+import { TLSSocket } from 'node:tls';
+import { BlockList, isIP } from 'node:net';
+import { resolveOfficePython } from './python-runtime.ts';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import type { OfficeAgent, OfficeSnapshot } from '../src/domain/types.ts';
+import { participantDetails } from '../src/domain/snapshot.ts';
+import type { HistoryQuery, ReadHistory } from './history.ts';
 
-interface MiddlewareOptions { collect: () => Promise<unknown>; now?: () => number; }
+interface MiddlewareOptions { collect: () => Promise<unknown>; now?: () => number; readHistory?: ReadHistory; }
 type Next = (error?: unknown) => void;
 const LOCAL_HOST = /^(?:127\.0\.0\.1|localhost|\[::1\])(?::\d{1,5})?$/i;
 const SOURCE = 'Local Hermes status bridge';
@@ -24,6 +29,7 @@ const WARNINGS = new Set([
   'Some profiles have no fresh runtime evidence; offline means uncertain.',
   'Some status stores could not be read; results are partial.',
   'Roster limit reached; additional profiles are not shown.',
+  'Some participant details are unavailable; the roster may show aggregate or partial activity.',
   'Read time limit reached; some statuses are uncertain.',
   'New work is paused; existing turns are not stopped by ESTOP.',
   'Some backend metadata could not be verified; availability is uncertain.',
@@ -53,7 +59,7 @@ function label(value: unknown): value is string {
 
 /** Fail closed, then construct a fresh allowlisted object; never proxy stdout verbatim. */
 export function validateSnapshot(value: unknown): OfficeSnapshot {
-  const root = object(value, ['schemaVersion', 'mode', 'source', 'observedAt', 'pollIntervalMs', 'sourceHealth', 'agents', 'warnings']);
+  const root = object(value, ['schemaVersion', 'mode', 'source', 'observedAt', 'pollIntervalMs', 'sourceHealth', 'agents', 'warnings'], ['participants']);
   ensure(root.schemaVersion === 1 && root.mode === 'live' && root.source === SOURCE && root.pollIntervalMs === 30000);
   ensure(iso(root.observedAt) && ['connected', 'degraded', 'unavailable'].includes(root.sourceHealth as string));
   ensure(Array.isArray(root.agents) && root.agents.length <= 128);
@@ -86,6 +92,7 @@ export function validateSnapshot(value: unknown): OfficeSnapshot {
     schemaVersion: 1, mode: 'live', source: SOURCE, observedAt: root.observedAt,
     pollIntervalMs: 30000, sourceHealth: root.sourceHealth as OfficeSnapshot['sourceHealth'],
     agents, warnings: [...root.warnings] as string[],
+    ...participantDetails(root, agents, root.observedAt),
   };
 }
 
@@ -94,18 +101,60 @@ function unavailable(): OfficeSnapshot {
     pollIntervalMs: 30000, sourceHealth: 'unavailable', agents: [], warnings: ['Hermes status storage is unavailable.']};
 }
 
-function localOrigin(origin: string | undefined): boolean {
-  if (origin === undefined) return true;
+/** Separate browser origins remain separate even if they are both on this computer. */
+export function permitsOfficeRead(host: string | undefined, origin: string | undefined, site: string | string[] | undefined, secure: boolean): boolean {
+  if (!host || !LOCAL_HOST.test(host)) return false;
+  if (site !== undefined && site !== 'same-origin' && site !== 'none') return false;
   try {
-    const url = new URL(origin);
-    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password
-      && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
-      && url.pathname === '/' && !url.search && !url.hash;
+    const expected = new URL(`${secure ? 'https' : 'http'}://${host}`).origin;
+    return origin === undefined || origin === expected;
   } catch { return false; }
+}
+
+const loopback = new BlockList();
+loopback.addSubnet('127.0.0.0', 8, 'ipv4');
+loopback.addAddress('::1', 'ipv6');
+function reject(response: ServerResponse, status: number, error: string) {
+  response.statusCode = status; response.end(JSON.stringify({error}));
+}
+function privateRead(request: IncomingMessage, response: ServerResponse) {
+  response.setHeader('Content-Type', 'application/json; charset=utf-8');
+  response.setHeader('Cache-Control', 'no-store');
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  if (request.method !== 'GET') {
+    response.setHeader('Allow', 'GET'); reject(response,405,'Only GET is supported.'); return false;
+  }
+  // Never substitute Host, Origin or forwarding metadata for the transport peer.
+  const peer = request.socket.remoteAddress, family = peer && isIP(peer);
+  if (!peer || !family || !loopback.check(peer, family === 4 ? 'ipv4' : 'ipv6') ||
+      !permitsOfficeRead(request.headers.host, request.headers.origin, request.headers['sec-fetch-site'],
+        request.socket instanceof TLSSocket && request.socket.encrypted === true)) {
+    reject(response,403,'Only local requests are supported.'); return false;
+  }
+  return true;
+}
+
+export function createHistoryMiddleware(read?: ReadHistory, now=Date.now) {
+  return (request: IncomingMessage, response: ServerResponse, next: Next): void => {
+    const path = '/api/office/history', url = request.url ?? '';
+    if (url !== path && !url.startsWith(path+'?')) { next(); return; }
+    if (!privateRead(request,response)) return;
+    let query:HistoryQuery = {};
+    if (url !== path) {
+      const match = url.length <= path.length+24 && /^\?(end|after)=(0|[1-9]\d{0,15})$/.exec(url.slice(path.length));
+      if (!match || Number(match[2]) > 8_640_000_000_000_000) {reject(response,400,'Invalid recording range.');return;}
+      query = match[1]==='end' ? {end:Number(match[2])} : {after:Number(match[2])};
+    }
+    if (!read) {reject(response,503,'Recording is unavailable.');return;}
+    try {response.end(JSON.stringify(read(query,now())));}
+    catch {reject(response,503,'Recording is unavailable.');}
+  };
 }
 
 export function createOfficeMiddleware(options: MiddlewareOptions) {
   const now = options.now ?? Date.now;
+  const history = createHistoryMiddleware(options.readHistory, now);
   type Entry = { status: number; value: OfficeSnapshot; expiresAt: number };
   let cached: Entry | undefined;
   let inflight: Promise<Entry> | undefined;
@@ -120,21 +169,9 @@ export function createOfficeMiddleware(options: MiddlewareOptions) {
     return inflight;
   };
   return (request: IncomingMessage, response: ServerResponse, next: Next): void => {
-    if (request.url?.split('?')[0] !== '/api/office') { next(); return; }
-    response.setHeader('Content-Type', 'application/json; charset=utf-8');
-    response.setHeader('Cache-Control', 'no-store');
-    response.setHeader('X-Content-Type-Options', 'nosniff');
-    const reject = (status: number, error: string) => {
-      response.statusCode = status; response.end(JSON.stringify({error}));
-    };
-    if (request.method !== 'GET') {
-      response.setHeader('Allow', 'GET'); reject(405, 'Only GET is supported.'); return;
-    }
-    if (!LOCAL_HOST.test(request.headers.host ?? '') || !localOrigin(request.headers.origin)
-        || request.headers['sec-fetch-site'] === 'cross-site') {
-      reject(403, 'Only local requests are supported.'); return;
-    }
-    if (request.url?.includes('?')) { reject(400, 'Query parameters are not supported.'); return; }
+    if (request.url?.split('?')[0] !== '/api/office') { history(request,response,next); return; }
+    if (!privateRead(request,response)) return;
+    if (request.url?.includes('?')) {reject(response,400,'Query parameters are not supported.');return;}
     void collect().then(entry => {
       if (response.destroyed) return;
       response.statusCode = entry.status;
@@ -143,23 +180,28 @@ export function createOfficeMiddleware(options: MiddlewareOptions) {
   };
 }
 
-/** Node-only plugin: it is never bundled into the browser or hero scene. */
-export function officeApiPlugin(): Plugin {
-  let root = process.cwd();
-  const collect = () => new Promise<unknown>((resolveResult, reject) => {
-    execFile(process.env.PYTHON_BIN || 'python3', ['-B', resolve(root, 'bridge/collect.py')], {
-      cwd: root, timeout: 8000, maxBuffer: 256 * 1024, encoding: 'utf8', windowsHide: true,
-    }, (error, stdout) => {
-      if (error) { reject(new Error('Status collector unavailable')); return; }
-      try { resolveResult(JSON.parse(stdout)); } catch { reject(new Error('Invalid status response')); }
+export function createBridgeCollector(root: string, recording = false) {
+  let python: string | undefined;
+  return async (signal?: AbortSignal) => {
+    const executable = python ??= await resolveOfficePython();
+    signal?.throwIfAborted();
+    return new Promise<unknown>((resolveResult, reject) => {
+      execFile(executable, ['-I', '-B', resolve(root, 'bridge/collect.py'), ...(recording ? ['--recording'] : [])], {
+        cwd: root, signal, timeout: 8000, maxBuffer: 256 * 1024, encoding: 'utf8', windowsHide: true,
+      }, (error, stdout) => {
+        if (error) { python = undefined; reject(new Error('Status collector unavailable')); return; }
+        try { resolveResult(JSON.parse(stdout)); } catch { reject(new Error('Invalid status response')); }
+      });
     });
-  });
-  const middleware = createOfficeMiddleware({ collect });
+  };
+}
+
+/** Normal dev, build and preview do not load or open a history database. */
+export function officeApiPlugin(): Plugin {
   return {
     name: 'office-hours-local-readonly-bridge',
-    configResolved(config) { root = config.root; },
-    configureServer(server) { server.middlewares.use(middleware); },
-    configurePreviewServer(server) { server.middlewares.use(middleware); },
+    configureServer(server) { server.middlewares.use(createOfficeMiddleware({collect:createBridgeCollector(server.config.root)})); },
+    configurePreviewServer(server) { server.middlewares.use(createOfficeMiddleware({collect:createBridgeCollector(server.config.root)})); },
   };
 }
 

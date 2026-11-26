@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8"><link rel="icon" href="data:,"><title>Campus signal tape fixture</title>
+<style>
+  * { box-sizing: border-box; } body { margin: 0; background: #02040b; color: white; }
+  .scene-mount, .scene-mount canvas { display: block; width: 840px; height: 500px; }
+  .sr-only { position: absolute; clip-path: inset(100%); }
+</style>
+<div id="root"></div>
+<script type="module">
+import * as THREE from 'three';
+import { batch, createComponent, createSignal } from 'solid-js';
+import { render } from 'solid-js/web';
+import { OfficeScene } from '/src/components/OfficeScene.tsx';
+
+// Inject only roster and transport. Observe the real main render, not a parallel pose model.
+const [agents, setAgents] = createSignal([]), [tape, setTape] = createSignal(), [motion, setMotion] = createSignal(false);
+let scene, camera, handle, draws = 0, calls = 0, triangles = 0;
+const after = THREE.Scene.prototype.onAfterRender;
+THREE.Scene.prototype.onAfterRender = function(renderer, ...rest) {
+  if (!renderer.getRenderTarget()) { scene = this; camera = rest[1]; calls = renderer.info.render.calls; triangles = renderer.info.render.triangles; draws++; }
+  return after.call(this, renderer, ...rest);
+};
+const dispose = render(() => createComponent(OfficeScene, {
+  get agents() { return agents(); }, get tape() { return tape(); }, get motion() { return motion(); },
+  focus: 'general', selected: null, night: false, onSelect() {}, onHandle(value) { handle = value; },
+}), document.getElementById('root'));
+const canvas = document.querySelector('.scene-mount canvas');
+const initialCanvas = canvas;
+const roster = (actors, atMs) => actors.map(a => ({ id: a.id, team: a.team, state: a.state, name: 'Fixture only', role: 'Fixture', activity: 'Not a caption', observedAt: new Date(atMs).toISOString() }));
+const matrices = (node) => { const out = []; node.traverse(o => out.push([o.name, ...o.matrix.elements])); return out; };
+function view() {
+  const figures = {};
+  scene.traverse(o => {
+    if (o.name !== 'signal-being') return;
+    const pick = o.children.find(c => c.userData.agentId);
+    const head = o.getObjectByName('signal-lens');
+    const world = head.getWorldPosition(new THREE.Vector3()), pos = world.clone().project(camera);
+    figures[pick.userData.agentId] = { parts: matrices(o), head: world.toArray(), x: (pos.x + 1) * canvas.clientWidth / 2, y: (1 - pos.y) * canvas.clientHeight / 2 };
+  });
+  const captions = [], link = []; scene.traverseVisible(o => {
+    if (o.isSprite) captions.push(o.material.map?.name);
+    if (o.name === 'observed-link') {
+      const p = o.geometry.attributes.position; for (const i of [0,p.count-1]) link.push(new THREE.Vector3().fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld).toArray());
+    }
+  });
+  return { figures, captions, link, camera: [...camera.matrixWorld.elements, camera.zoom], persistent: canvas === document.querySelector('canvas') && canvas === initialCanvas,
+    time: scene.getObjectByName('memory-surface-reconstruction').children[0].material.uniforms.uTime.value,
+    trails: Number(canvas.dataset.dataTrails), draws, calls, triangles };
+}
+window.sceneTape = {
+  get draws() { return draws; }, get ready() { return draws > 0 && Boolean(handle); }, canvas, view,
+  show(t, updateRoster = true) { batch(() => {
+    if (updateRoster) setAgents(roster(t.actors,t.sampleAtMs ?? t.atMs));
+    setTape(t);
+  }); }, off(actors) { batch(() => { setTape(undefined); if (actors) setAgents(roster(actors,Date.now())); }); }, motion: setMotion, zoom() { handle.zoom(1); },
+};
+window.addEventListener('pagehide', () => { dispose(); THREE.Scene.prototype.onAfterRender = after; }, { once: true });
+</script>

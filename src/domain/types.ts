@@ -12,6 +12,14 @@ export interface OfficeAgent {
   /** Verified in-flight sessions only; no session IDs, titles or content. */
   activeSessions?: number;
 }
+/** One verified in-flight turn, never an additional profile aggregate. The bridge's opaque id is
+ * `p-` + 32 lowercase hex digits; the neutral display name is Session/Subagent + its first six
+ * uppercase digits. A parentId refers to another participant in this observation and profile. */
+export interface OfficeParticipant extends OfficeAgent {
+  kind: 'session' | 'subagent';
+  profileId: string;
+  parentId?: string;
+}
 export interface OfficeSnapshot {
   schemaVersion: 1;
   mode: 'live' | 'demo';
@@ -20,6 +28,8 @@ export interface OfficeSnapshot {
   pollIntervalMs: number;
   sourceHealth: 'connected' | 'degraded' | 'unavailable';
   agents: OfficeAgent[];
+  /** Detail for the corresponding aggregate profiles; not additional workers to count with them. */
+  participants?: OfficeParticipant[];
   warnings: string[];
 }
 export const TEAM_LABELS: Record<Team, string> = {

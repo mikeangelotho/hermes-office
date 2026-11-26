@@ -149,8 +149,7 @@ test('API rejects writes, nonlocal origins and query inputs before collection', 
     assert.equal((await fetch(`${url}?path=private&sql=DROP`)).status, 400);
     assert.equal((await fetch(url.replace('/api/office', '/elsewhere'))).status, 404);
     assert.equal(calls, 0);
-    assert.equal((await fetch(url, {headers: {Origin: 'http://127.0.0.1:3010'}})).status, 200);
-    assert.equal((await fetch(url, {headers: {Origin: 'http://localhost:3010'}})).status, 200);
+    assert.equal((await fetch(url, {headers: {Origin: new URL(url).origin}})).status, 200);
   } finally { await close(server); }
 });
 
@@ -162,6 +161,7 @@ test('GET returns only the validated snapshot with safe response headers', async
     assert.deepEqual(await response.json(), snapshot());
     assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(response.headers.get('cross-origin-resource-policy'), 'same-origin');
     assert.match(response.headers.get('content-type') ?? '', /application\/json/);
     assert.equal(response.headers.get('access-control-allow-origin'), null);
   } finally { await close(server); }

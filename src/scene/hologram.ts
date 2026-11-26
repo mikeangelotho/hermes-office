@@ -11,20 +11,23 @@ export function hologramMaterial(color: string, kind: string, time: { value: num
   const agent = role === 'agent', screen = role === 'screen';
   const wall = !agent && !screen && (color === P.wall || color === P.glass);
   const base = [P.floor, P.floorAlt, P.foundation, P.black].includes(color as never);
+  const floorFinish = role === 'environment' && color === P.floor;
   const material = new THREE.MeshLambertMaterial({
     color: new THREE.Color(color).multiplyScalar(agent ? .5 : screen ? .8 : .18), flatShading: true, transparent: true,
-    opacity: agent ? .9 : wall ? .3 : base ? .64 : .70,
+    opacity: agent ? .9 : wall ? .3 : floorFinish ? .24 : base ? .64 : .70,
     depthWrite: !wall, emissive: color, emissiveIntensity: agent ? 1.0 : screen ? .6 : base ? .035 : .10,
   });
   const backdrop = glass ?? { texture: { value: null }, viewport: { value: new THREE.Vector2(1,1) }, ready: { value: 0 } };
   material.userData.hologramRole = wall ? 'glass' : role;
+  // The physical deck now owns the opaque contact surface, in the main and frosted views.
+  if (floorFinish) material.userData.captureBackdrop = false;
   material.onBeforeCompile = shader => {
     shader.uniforms.uHoloTime = time;
     shader.uniforms.uHoloBackdrop = backdrop.texture;
     shader.uniforms.uHoloViewport = backdrop.viewport;
     shader.uniforms.uHoloGlassReady = backdrop.ready;
     // Fragmented shells already have real gaps; pixel erosion hid their silhouette at campus scale.
-    shader.uniforms.uHoloReconstruction = { value: !wall && !screen && !agent ? 1 : 0 };
+    shader.uniforms.uHoloReconstruction = { value: !wall && !screen && !agent && !floorFinish ? 1 : 0 };
     shader.uniforms.uHoloIsGlass = { value: wall ? 1 : 0 };
     shader.uniforms.uHoloSignal = { value: agent ? 1.0 : screen ? .6 : base ? .045 : .24 };
     shader.uniforms.uHoloBox = { value: kind === 'box' ? 1 : 0 };

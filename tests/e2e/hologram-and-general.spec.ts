@@ -23,8 +23,8 @@ test('blue hologram world retains its budget and freezes the complete effect whe
   expect(errors).toEqual([]);
 });
 
-test('general sessions exposes the default Hermes identity and a bounded aggregate, never content', async ({ page, request }) => {
-  const response = await request.get('/api/office');
+test('general sessions exposes the default Hermes identity and a bounded aggregate, never content', async ({ page }) => {
+  const [response] = await Promise.all([page.waitForResponse(r => new URL(r.url()).pathname === '/api/office'), page.goto('/?team=general')]);
   expect(response.status()).toBe(200);
   const snapshot = await response.json();
   const general = snapshot.agents.find((a: { id: string }) => a.id === 'default');
@@ -33,15 +33,22 @@ test('general sessions exposes the default Hermes identity and a bounded aggrega
   expect(Object.keys(general)).not.toContain('sessions');
   expect(Object.keys(general)).not.toContain('messages');
   if (general.activeSessions !== undefined) { expect(Number.isSafeInteger(general.activeSessions)).toBe(true); expect(general.activeSessions).toBeGreaterThanOrEqual(0); }
-  await page.goto('/?team=general');
   await page.getByRole('button', { name: 'Open team', exact: true }).click();
-  await expect(page.getByTestId('agent-row')).toHaveCount(1);
-  await page.getByTestId('agent-row').click();
-  await expect(page.getByRole('heading', { name: 'Hermes', exact: true })).toBeVisible();
+  const people: { name: string; profileId: string }[] = (snapshot.participants ?? []).filter((p: { profileId: string }) => p.profileId === general.id);
+  const rows = page.getByTestId('agent-row');
+  await expect(rows).toHaveCount(people.length || 1);
+  const target = people[0] ?? general;
+  await rows.filter({ has: page.getByText(target.name, { exact: true }) }).click();
+  await expect(page.getByRole('heading', { name: target.name, exact: true })).toBeVisible();
+  if (people.length) await expect(page.getByTestId('agent-inspector').getByText('Hermes', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Open status', exact: true }).click();
   await expect(page.getByText('Local bridge connected', { exact: true })).toBeVisible();
   await expect(page.getByText('Active general sessions', { exact: true })).toBeVisible();
+  const partial = snapshot.sourceHealth === 'degraded' || snapshot.agents.some((a: {state:string}) => a.state === 'offline');
+  const expected = general.state === 'offline' || general.activeSessions === undefined || (partial && !general.activeSessions)
+    ? 'Unverified' : `${partial ? 'At least ' : ''}${general.activeSessions}`;
+  await expect(page.locator('.status-facts > div').filter({ hasText: 'Active general sessions' }).locator('dd')).toHaveText(expected);
 });
 
 test('all embedded aliases remain UI-free and cannot acquire the live default-session feed', async ({ page }) => {

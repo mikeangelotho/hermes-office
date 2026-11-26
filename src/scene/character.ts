@@ -3,6 +3,7 @@ import type { OfficeAgent, Team } from '../domain/types.ts';
 import { agentColor, routeFor, seatFor, type Point, type Seat } from './layout.ts';
 import { Assets } from './room.ts';
 import { PALETTE as P } from './palette.ts';
+import { actorPhase } from './tape.ts';
 
 // All transforms are room-local. Keep the lowest fragment above .80m so
 // lounge cushions, charging perches and rest platforms fit below the rig.
@@ -22,6 +23,7 @@ export class Character {
   pick: THREE.Mesh; ring: THREE.Mesh; shadow: THREE.Mesh;
   seat: Seat; path: Point[] = []; phase: number; agent: OfficeAgent;
   private capacity: number;
+  private readonly tapePhase: number;
   private disposed = false;
   private ringMaterial: THREE.MeshBasicMaterial;
   private shadowMaterial: THREE.MeshBasicMaterial;
@@ -32,6 +34,7 @@ export class Character {
   private gazeCamera = new THREE.Vector3();
   constructor(a: Assets, agent: OfficeAgent, index: number, shadowTexture: THREE.Texture, capacity = 10) {
     this.capacity = capacity;
+    this.tapePhase = actorPhase(agent.id);
     this.agent = agent; this.seat = seatFor(index, agent.state, this.capacity); this.phase = index * 1.73;
     this.root.position.set(this.seat.x, 0, this.seat.z); this.root.rotation.y = this.seat.rotation;
     this.root.name = 'signal-being'; this.body.name = 'signal-fragments'; this.head.name = 'signal-lens';
@@ -134,6 +137,42 @@ export class Character {
       }
     });
     this.shadowMaterial.opacity = this.agent.state === 'offline' ? .14 : .28;
+  }
+  /** Sample the actual rig from an observation. No travel, cursor gaze, easing or remembered pose. */
+  poseAt(atMs: number, reduced: boolean) {
+    if (this.disposed) return;
+    this.tick(0, 0, true); // Rest/desk silhouette for this state; settles any untaped route first.
+    if (reduced) return;
+    const beat = (atMs % 2400) / 2400 * Math.PI * 2 + this.tapePhase;
+    const swing = Math.sin(beat), lift = Math.cos(beat);
+    if (this.agent.state === 'working') {
+      this.body.position.y += .045 * lift;
+      this.body.rotation.x = .09 + .045 * lift;
+      this.head.rotation.y = .18 * swing;
+      this.head.rotation.x = -.09 + .045 * lift;
+      this.hands[0].position.set(-.29, .08 + .13 * swing, .63 + .09 * lift);
+      this.hands[1].position.set(.29, .08 - .13 * swing, .63 - .09 * lift);
+    } else if (this.agent.state === 'idle') {
+      this.body.position.y += .018 * lift;
+    }
+  }
+  /** Manipulators brace and lift away from their ordinary two-handed work pose. */
+  toolPose(atMs: number, reduced: boolean) {
+    const lift = reduced ? 0 : Math.sin((atMs % 1600) / 1600 * Math.PI * 2 + this.tapePhase);
+    this.body.position.set(-.11, 1.52 + .055 * lift, .04);
+    this.body.rotation.set(-.18, .44, -.24);
+    this.head.rotation.set(.09, -.44, 0);
+    this.fins[1].rotation.z = 1.17;
+    this.hands[0].position.set(-.32, -.10, .69);
+    this.hands[1].position.set(.52, .53 + .13 * lift, .44);
+    this.hands[1].rotation.set(-.7, .35, -.42);
+  }
+  /** The mate is a verified figure from this very sample, not the nearest available neighbor. */
+  acknowledge(mate: Character) {
+    mate.root.getWorldPosition(this.gazePosition); this.root.worldToLocal(this.gazePosition);
+    this.body.rotation.y = Math.atan2(this.gazePosition.x, this.gazePosition.z);
+    this.head.rotation.set(-.12, 0, 0); this.fins[0].rotation.z = -.94;
+    this.hands[0].position.set(-.42, .39, .53); this.hands[0].rotation.set(-.6, -.28, .24);
   }
   select(selected: boolean) { if (!this.disposed) this.ring.visible = selected; }
   dispose() {

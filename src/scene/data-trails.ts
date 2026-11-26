@@ -36,15 +36,17 @@ export function createDataTrails(maxAgents = 10) {
   });
   const points = new THREE.Points(geometry,material);points.frustumCulled=false;points.renderOrder=5;
   const p = new THREE.Vector3();let cursor=halos,lastEmit=-Infinity,subjectsRef: readonly TrailSubject[]|undefined,paused=false,disposed=false,now=0;
-  function clear() { for(let i=halos;i<capacity;i++)born[i]=-10000;previous.fill(NaN); }
+  function clear() { born.fill(-10000,halos);previous.fill(NaN);cursor=halos;lastEmit=-Infinity; }
   function write(index:number,x:number,y:number,z:number,kind:number,time:number) { const at=index*3;positions[at]=x;positions[at+1]=y;positions[at+2]=z;kinds[index]=kind;born[index]=time; }
   return {
     points,
-    get active(){let n=0;for(let i=halos;i<capacity;i++)if(now-born[i]>=0&&now-born[i]<1.1)n++;return n;},
+    get active(){if(paused)return 0;let n=0;for(let i=halos;i<capacity;i++)if(now-born[i]>=0&&now-born[i]<1.1)n++;return n;},
     update(time:number,subjects:readonly TrailSubject[],reduced:boolean) {
-      if(disposed)return;now=Math.fround(time);
-      if(subjectsRef!==subjects){clear();subjectsRef=subjects;born.fill(-10000,0,halos);}
+      if(disposed)return;const next=Math.fround(time);
+      if(subjectsRef!==subjects || (!paused && next<now)){clear();subjectsRef=subjects;born.fill(-10000,0,halos);kinds.fill(0,0,halos);}
+      now=next;
       if(reduced&&!paused)clear();paused=reduced;material.uniforms.uPaused.value=reduced?1:0;material.uniforms.uTime.value=now;
+      geometry.setDrawRange(0,reduced ? Math.min(maxAgents,subjects.length)*2 : capacity);
       const emit=!reduced&&time-lastEmit>=1/12;
       for(let i=0;i<Math.min(maxAgents,subjects.length);i++){
         const s=subjects[i];s.head.getWorldPosition(p);

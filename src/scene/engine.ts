@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { OfficeAgent, Team } from '../domain/types.ts';
+import type { SceneTape } from '../domain/trace.ts';
+import { cursorAt, scanSeconds } from './tape.ts';
+import { createTapeCues, inCueWindow } from './tape-cues.ts';
 import { Assets, createRoom, type RoomModel } from './room.ts';
 import { Character } from './character.ts';
 import { createCourtyard } from './courtyard.ts';
+import { createCampusInterior } from './campus-interior.ts';
 import { pixelRatioFor } from './camera.ts';
 import { planCampus, boundsFor, ROOM_TITLES, type CampusView } from './campus.ts';
 import { campusCamera } from './campus-camera.ts';
@@ -13,8 +17,10 @@ import { createFiberField } from './fibers.ts';
 import { createSpatialGlass } from './spatial-glass.ts';
 import { createDataTrails, type TrailSubject } from './data-trails.ts';
 
+export type RosterSource = 'office' | 'recording';
 export interface OfficeEngine {
-  update(agents: OfficeAgent[]): void;
+  update(agents: OfficeAgent[], source?: RosterSource): void;
+  setTape(tape: SceneTape | undefined): void;
   focus(view: CampusView): void;
   select(id: string | null): void;
   setNight(value: boolean): void;
@@ -54,25 +60,25 @@ export function createOffice(canvas: HTMLCanvasElement, options: { onSelect: (id
   const trails = createDataTrails(128);scene.add(trails.points);
   let trailSubjects: TrailSubject[] = [];const towardCamera = new THREE.Vector3();
   const shadowTexture = a.texture(64, 64, ctx => { const gradient = ctx.createRadialGradient(32, 32, 2, 32, 32, 32); gradient.addColorStop(0, 'rgba(0,3,15,.85)'); gradient.addColorStop(1, 'rgba(0,3,15,0)'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, 64, 64); });
-  // A single soft shadow anchors the diorama without another render target.
-  const groundMaterial = new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: .05, depthWrite: false });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(42, 49), groundMaterial); ground.rotation.x = -Math.PI / 2; ground.position.set(0,-.43,6); scene.add(ground);
+  let interior: ReturnType<typeof createCampusInterior> | undefined, footprintSignature = '';
   const characters = new Map<string, Character>();
   let selected: string | null = null, disposed = false, motion = true, intersecting = true, dirty = true;
   const media = window.matchMedia('(prefers-reduced-motion: reduce)');
   const reduced = () => media.matches || !motion;
   const desiredPosition = new THREE.Vector3(), desiredTarget = new THREE.Vector3();
-  let flying = false, firstLayout = true, labelsAt = -Infinity;
+  let flying = false, labelsAt = -Infinity, previousSource: RosterSource | undefined;
   function settleFlight() {
     if(!flying)return;
     flying=false;
     camera.position.copy(desiredPosition);controls.target.copy(desiredTarget);
     controls.update();dirty=true;projectRooms();
   }
-  function fitView(instant = false) {
+  function viewedBounds(layout: typeof plan) {
+    return focused === 'all' ? layout.bounds : boundsFor(layout.rooms.filter(room => room.team === focused));
+  }
+  function fitView(instant = false, bounds = viewedBounds(plan)) {
     const rect=canvas.getBoundingClientRect();
-    const visible=focused==='all'?plan.rooms:plan.rooms.filter(r=>r.team===focused);
-    const pose=campusCamera(boundsFor(visible),rect.width,rect.height);
+    const pose=campusCamera(bounds,rect.width,rect.height);
     desiredPosition.fromArray(pose.position);desiredTarget.fromArray(pose.target);
     camera.fov=pose.fov;camera.aspect=pose.aspect;camera.zoom=1;camera.updateProjectionMatrix();
     controls.minDistance=Math.max(6,pose.distance*.35);controls.maxDistance=Math.max(250,pose.distance*2);
@@ -97,10 +103,20 @@ export function createOffice(canvas: HTMLCanvasElement, options: { onSelect: (id
   }
   const raycaster = new THREE.Raycaster(); const pointer = new THREE.Vector2();
   const cursor = new THREE.Vector2(); let cursorActive = false;
-  let visualTime = 0;
+  let ambientTime = 0, tapeReceived = 0, tape: SceneTape | undefined;
+  const recordedIds = new Set<string>();
+  // A live head may cover only some of the current roster. Leave its other (untaped) lounge visitors alone.
+  const sampled = (id: string) => !!tape && (tape.rate !== 1 || recordedIds.has(id));
+  let cues: ReturnType<typeof createTapeCues> | undefined, cuesShown = false;
+  function bindCues() {
+    if (!cues && tape?.actors.some(a => a.signal === 'tool' || a.parentId !== undefined)) { cues = createTapeCues(a); scene.add(cues.group); }
+    cues?.bind(tape?.actors ?? [], characters);
+  }
   let pointerDown = { x: 0, y: 0 }; let lastFrame = 0; let frames = 0; let statsAt = performance.now();
+  let width = 1, height = 1;
   function resize() {
     if (disposed) return; const rect = canvas.getBoundingClientRect(); if (rect.width <= 0 || rect.height <= 0) return;
+    width = rect.width; height = rect.height;
     cursorActive = false;
     fitView(true);
     renderer.setPixelRatio(pixelRatioFor(rect.width, rect.height, window.devicePixelRatio || 1)); renderer.setSize(rect.width, rect.height, false);glass.resize(rect.width,rect.height); memory.setPixelRatio(renderer.getPixelRatio()); courtyard.setPixelRatio(renderer.getPixelRatio()); dirty = true;
@@ -113,28 +129,39 @@ export function createOffice(canvas: HTMLCanvasElement, options: { onSelect: (id
     if (now - lastFrame < 1000 / 30 - 1) return;
     const dt = Math.min((now - lastFrame) / 1000 || 0, .06); lastFrame = now;
     if(flying){const mix=1-Math.exp(-dt*5);camera.position.lerp(desiredPosition,mix);controls.target.lerp(desiredTarget,mix);if(camera.position.distanceTo(desiredPosition)<.03){camera.position.copy(desiredPosition);controls.target.copy(desiredTarget);flying=false;}}
-    const cameraChanged = controls.update() || flying; const moving = [...characters.values()].some(c => c.path.length > 0);
-    if (reduced() && !dirty && !cameraChanged && !moving) return;
-    if (!reduced()) visualTime += dt;
-    memory.tick(visualTime,reduced()); courtyard.tick(visualTime,reduced());
+    const cameraChanged = controls.update() || flying;
+    const moving = !tape && [...characters.values()].some(c => c.path.length > 0);
+    const atMs = tape ? cursorAt(tape, tapeReceived, now) : 0;
+    const showCues = !!(cues && tape && inCueWindow(tape, atMs));
+    if ((reduced() || tape?.rate === 0) && !dirty && !cameraChanged && !moving && cuesShown === showCues) return;
+    // A discrete illustration changes even when reduced motion keeps every other layer still.
+    if (cuesShown !== showCues) dirty = true;
+    cuesShown = showCues;
+    if ((!tape || tape.rate === 1) && !reduced()) ambientTime += dt;
+    const visualTime = tape ? (reduced() ? 0 : scanSeconds(atMs)) : ambientTime;
+    const holdUniforms = !tape && reduced();
+    memory.tick(visualTime,holdUniforms); courtyard.tick(visualTime,holdUniforms);
     canvas.dataset.memoryPoints = String(memory.pointCount+courtyard.pointCount); canvas.dataset.memoryTime = visualTime.toFixed(3); canvas.dataset.projection = 'perspective';
-    fibers.tick(visualTime, reduced()); a.tickHolograms(visualTime, reduced());
+    fibers.tick(visualTime, holdUniforms); a.tickHolograms(visualTime, holdUniforms);
     canvas.dataset.fiberTime = visualTime.toFixed(3);
     let firstCouch: Character | undefined; let following = 0;
     const activeCursor = cursorActive && !reduced() ? cursor : null;
     characters.forEach(c => {
-      const tracking = c.lookAtCursor(activeCursor, camera);
-      c.tick(visualTime, dt, reduced());
+      const onTape = sampled(c.agent.id);
+      const tracking = !onTape && c.lookAtCursor(activeCursor, camera);
+      if (onTape) c.poseAt(atMs, reduced()); else c.tick(ambientTime, dt, reduced());
       if (c.seat.kind === 'couch' && !c.path.length) firstCouch ??= c;
       if (tracking) following++;
     });
     canvas.dataset.gazeTracking = String(following);
     canvas.dataset.gazeYaw = (firstCouch?.head.rotation.y ?? 0).toFixed(4);
     canvas.dataset.gazePitch = (firstCouch?.head.rotation.x ?? 0).toFixed(4);
+    cues?.draw(showCues, atMs, reduced(), camera, width, height, focused);
     camera.getWorldDirection(towardCamera).negate();trails.setView(towardCamera,renderer.getPixelRatio());
-    trails.update(visualTime,trailSubjects,reduced());
+    // Inter-frame afterimages depend on the route taken to a frame; on tape only the current halos are truthful.
+    trails.update(visualTime,trailSubjects,reduced() || !!tape);
     renderer.info.reset();
-    const capture = glass.render(visualTime,dirty || cameraChanged);
+    const capture = glass.render(tape ? now / 1000 : visualTime,dirty || cameraChanged);
     renderer.render(scene, camera); dirty = false; frames++;
     if(reduced()||now-labelsAt>=140){projectRooms();labelsAt=now;}
     canvas.dataset.glassReady = String(a.glass.ready.value);canvas.dataset.glassPixels = String(capture.pixels);
@@ -173,7 +200,21 @@ export function createOffice(canvas: HTMLCanvasElement, options: { onSelect: (id
   if (options.interactive) { canvas.addEventListener('pointermove', onMove, { passive: true }); canvas.addEventListener('pointerleave', onLeave); canvas.addEventListener('pointercancel', onLeave); }
   document.addEventListener('visibilitychange', onVisibility); media.addEventListener('change', onMediaChange);
   const api: OfficeEngine = {
-    update(agents) {
+    setTape(next) {
+      if (next === tape) return;
+      const now = performance.now();
+      if (!next || !tape || next.rate === 0 || next.rate !== tape.rate || next.actors !== tape.actors
+        || Math.abs(next.atMs - cursorAt(tape, tapeReceived, now)) > 100) dirty = true;
+      const signalsChanged = tape?.actors !== next?.actors;
+      tape = next; tapeReceived = now;
+      if (signalsChanged) {
+        recordedIds.clear(); if (next) for (const actor of next.actors) recordedIds.add(actor.id);
+        bindCues();
+      }
+    },
+    // Tape-only callers supply recorded rosters; the office can also overlay tape cues on its own roster.
+    update(agents, source = tape ? 'recording' : 'office') {
+      const previousPlan = plan;
       plan=planCampus(agents);
       const signature=plan.assignments.map(x=>`${x.roomId}:${x.agent.id}:${x.slot}`).join('|');
       const rosterChanged=signature!==rosterSignature||!rooms.size;
@@ -181,6 +222,10 @@ export function createOffice(canvas: HTMLCanvasElement, options: { onSelect: (id
         characters.forEach(c=>{c.root.removeFromParent();c.dispose();});characters.clear();
         rooms.forEach(room=>{scene.remove(room.group);room.dispose();});rooms.clear();
         for(const spec of plan.rooms){const room=createRoom(a,{team:spec.team,count:spec.agents.length});room.group.position.set(spec.x,0,spec.z);rooms.set(spec.id,room);scene.add(room.group);}
+        const footprint=plan.rooms.map(r=>`${r.x},${r.z},${r.width},${r.depth}`).join(';');
+        if(footprint!==footprintSignature){
+          interior?.dispose();interior=createCampusInterior(plan.rooms);scene.add(interior.group);footprintSignature=footprint;
+        }
         scene.remove(courtyard.group);courtyard.dispose();
         const bounds=plan.bounds;
         courtyard=createCourtyard(a,{width:bounds.maxX-bounds.minX,depth:bounds.maxZ-bounds.minZ});
@@ -192,12 +237,25 @@ export function createOffice(canvas: HTMLCanvasElement, options: { onSelect: (id
       for(const assignment of plan.assignments){
         const {agent,slot,roomId}=assignment,room=rooms.get(roomId)!;
         const existing=characters.get(agent.id);
-        if(existing)existing.update(agent,slot,reduced());
+        if(existing)existing.update(agent,slot,reduced() || sampled(agent.id));
         else{const c=new Character(a,agent,slot,shadowTexture,room.screens.length);characters.set(agent.id,c);room.group.add(c.root);}
         room.screens[slot].material=['working','waiting','blocked'].includes(agent.state)?room.screenOn:room.screenOff;
       }
-      if(rosterChanged){glass.setSources([...rooms.values()].map(r=>r.group).concat([courtyard.group,memory.group]));trailSubjects=[...characters.values()].map(c=>({head:c.head,hands:c.hands}));fitView(firstLayout);firstLayout=false;}
+      if(rosterChanged){
+        const sources=[...rooms.values()].map(r=>r.group).concat([courtyard.group,memory.group]);
+        if(interior)sources.push(interior.group);
+        glass.setSources(sources);trailSubjects=[...characters.values()].map(c=>({head:c.head,hands:c.hands}));
+        // Rebuilding figures shouldn't interrupt an orbit or flight when the viewed bounds are unchanged.
+        const before = viewedBounds(previousPlan), after = viewedBounds(plan);
+        const boundsChanged = before.minX !== after.minX || before.maxX !== after.maxX
+          || before.minZ !== after.minZ || before.maxZ !== after.maxZ;
+        // Switching rosters is not a camera command, even when a recording has no frames.
+        const firstLayout = previousSource === undefined;
+        if (firstLayout || (previousSource === 'office' && source === 'office' && boundsChanged)) fitView(firstLayout, after);
+      }
+      previousSource = source;
       api.select(selected); dirty = true; canvas.dataset.agents = String(characters.size);
+      if (tape) bindCues();
       canvas.dataset.rooms=String(rooms.size);canvas.dataset.focus=focused;
       projectRooms();
     },
@@ -216,7 +274,7 @@ export function createOffice(canvas: HTMLCanvasElement, options: { onSelect: (id
       document.removeEventListener('visibilitychange', onVisibility); media.removeEventListener('change', onMediaChange);
       canvas.removeEventListener('pointermove', onMove); canvas.removeEventListener('pointerleave', onLeave); canvas.removeEventListener('pointercancel', onLeave);
       canvas.removeEventListener('pointerdown', onDown); canvas.removeEventListener('pointerup', onUp); canvas.removeEventListener('keydown', onKey); canvas.removeEventListener('webglcontextlost', onContextLost);
-      characters.forEach(c => c.dispose()); characters.clear(); glass.dispose();trails.dispose();memory.dispose();rooms.forEach(room=>room.dispose());rooms.clear(); courtyard.dispose(); fibers.dispose(); ground.geometry.dispose(); groundMaterial.dispose(); a.dispose(); renderer.dispose(); renderer.forceContextLoss();
+      cues?.dispose(); characters.forEach(c => c.dispose()); characters.clear(); glass.dispose();trails.dispose();memory.dispose();rooms.forEach(room=>room.dispose());rooms.clear(); courtyard.dispose(); fibers.dispose(); interior?.dispose(); a.dispose(); renderer.dispose(); renderer.forceContextLoss();
     },
   };
   resize(); renderer.shadowMap.needsUpdate = true; schedule(); return api;

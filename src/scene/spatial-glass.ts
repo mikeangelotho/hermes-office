@@ -22,7 +22,8 @@ export function createGlassProxy(roots: THREE.Object3D[]) {
   const scene = new THREE.Scene(); scene.background = new THREE.Color(P.void);
   // instanceColor is enabled by InstancedMesh; vertexColors would require a separate geometry color attribute.
   const material = new THREE.MeshBasicMaterial({ toneMapped: false });
-  const scans: {source: THREE.Points | THREE.LineSegments; clone: THREE.Points | THREE.LineSegments}[] = [];
+  type SharedDraw = THREE.Points | THREE.LineSegments | THREE.Mesh;
+  const copies: {source: SharedDraw; clone: SharedDraw}[] = [];
   const batches: { mesh: THREE.InstancedMesh; entries: Entry[] }[] = [];
   const matrix = new THREE.Matrix4(), local = new THREE.Matrix4(), color = new THREE.Color(), emission = new THREE.Color();
   let sources = roots, disposed = false;
@@ -30,21 +31,22 @@ export function createGlassProxy(roots: THREE.Object3D[]) {
     if (disposed) return;
     sources = next;
     batches.forEach(b => { scene.remove(b.mesh); b.mesh.dispose(); }); batches.length = 0;
-    scans.forEach(s => scene.remove(s.clone)); scans.length = 0;
+    copies.forEach(s => scene.remove(s.clone)); copies.length = 0;
     const groups = new Map<string,{ geometry: THREE.BufferGeometry; entries: Entry[]; count: number }>();
     for (const root of sources) root.traverse(object => {
       if (!object.visible) return;
-      if (object instanceof THREE.Points || object instanceof THREE.LineSegments) {
-        const material = Array.isArray(object.material) ? object.material[0] : object.material;
-        if (material.visible && material.userData.captureMemory) {
-          const clone = object.clone(false); clone.matrixAutoUpdate = false; clone.frustumCulled = false;
-          scene.add(clone); scans.push({source:object,clone});
+      if (!(object instanceof THREE.Points || object instanceof THREE.LineSegments || object instanceof THREE.Mesh)) return;
+      const m = (Array.isArray(object.material) ? object.material[0] : object.material) as LitMaterial;
+      if (!m.visible || m.userData.captureBackdrop === false) return;
+      if (object instanceof THREE.Points || object instanceof THREE.LineSegments || m.userData.captureStatic) {
+        if (m.userData.captureMemory || m.userData.captureStatic) {
+          const clone = object.clone(false); clone.matrixAutoUpdate = false;
+          clone.frustumCulled = m.userData.captureStatic ? object.frustumCulled : false;
+          scene.add(clone); copies.push({source:object,clone});
         }
         return;
       }
-      if (!(object instanceof THREE.Mesh)) return;
-      const m = (Array.isArray(object.material) ? object.material[0] : object.material) as LitMaterial;
-      if (!m.visible || !['environment','agent','screen'].includes(m.userData.hologramRole)) return;
+      if (!['environment','agent','screen'].includes(m.userData.hologramRole)) return;
       const params = (object.geometry as THREE.BufferGeometry & { parameters?: unknown }).parameters;
       const key = `${object.geometry.type}:${params ? JSON.stringify(params) : object.geometry.uuid}`;
       const g = groups.get(key) ?? { geometry: object.geometry, entries: [] as Entry[], count: 0 };
@@ -61,7 +63,7 @@ export function createGlassProxy(roots: THREE.Object3D[]) {
   function sync() {
     if (disposed) return;
     for (const root of sources) root.updateWorldMatrix(true,true);
-    for (const s of scans) { s.clone.matrix.copy(s.source.matrixWorld); s.clone.visible = s.source.visible; }
+    for (const s of copies) { s.clone.matrix.copy(s.source.matrixWorld); s.clone.visible = s.source.visible; }
     for (const b of batches) {
       for (const entry of b.entries) {
         const source = entry.source;
@@ -81,7 +83,7 @@ export function createGlassProxy(roots: THREE.Object3D[]) {
   setSources(roots);
   return { scene, sync, setSources, dispose() {
     if (disposed) return; disposed = true;
-    batches.forEach(b => b.mesh.dispose()); batches.length = 0; scans.length = 0; scene.clear(); material.dispose(); sources = [];
+    batches.forEach(b => b.mesh.dispose()); batches.length = 0; copies.length = 0; scene.clear(); material.dispose(); sources = [];
   } };
 }
 

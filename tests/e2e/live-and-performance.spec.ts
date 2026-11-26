@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
 
 test('live mode returns real profile observations and rejects writes', async ({ page, request }) => {
-  const response = await request.get('/api/office');
+  const [response] = await Promise.all([
+    page.waitForResponse(r => new URL(r.url()).pathname === '/api/office'),
+    page.goto('/?team=all'),
+  ]);
   expect(response.status()).toBe(200);
   const snapshot = await response.json();
   expect(snapshot.schemaVersion).toBe(1);
@@ -10,12 +13,19 @@ test('live mode returns real profile observations and rejects writes', async ({ 
   expect(response.headers()['cache-control']).toBe('no-store');
   const denied = await request.post('/api/office', { data: { command: 'start' } });
   expect(denied.status()).toBe(405);
-  await page.goto('/');
+
   await page.getByRole('button', {name:'Open status',exact:true}).click();
   await expect(page.getByRole('button', { name: 'Live', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.press('Escape');
   await page.getByRole('button', {name:'Open team',exact:true}).click();
-  await expect(page.getByTestId('agent-row')).toHaveCount(snapshot.agents.length);
+  // Check the actual response this page rendered, independently of the UI projection.
+  const participants: { id: string; profileId: string }[] = snapshot.participants ?? [];
+  const covered = new Set(participants.map(person => person.profileId));
+  const expectedIds = [...participants, ...snapshot.agents.filter((profile: { id: string }) => !covered.has(profile.id))]
+    .map(row => row.id);
+  expect(new Set(expectedIds).size).toBe(expectedIds.length);
+  await expect(page.getByTestId('agent-row')).toHaveCount(expectedIds.length);
+  await expect(page.getByTestId('scene-canvas')).toHaveAttribute('data-agents', String(expectedIds.length));
   await expect(page.getByText('Simulated activity', { exact: true })).toHaveCount(0);
 });
 
